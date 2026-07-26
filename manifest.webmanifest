@@ -1,7 +1,7 @@
 {
-  "name": "EPUB Metadata Editor",
-  "short_name": "EPUB Editor",
-  "description": "Read and edit EPUB metadata privately in your browser. Nothing is uploaded.",
+  "name": "EPUB Library",
+  "short_name": "EPUB Library",
+  "description": "Manage, read and edit your EPUB books privately in your browser. Nothing is uploaded.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
