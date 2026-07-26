@@ -54,9 +54,10 @@ then visit `http://localhost:8000`.
 - **PDF** metadata is edited via [pdf-lib](https://pdf-lib.js.org/) — the document
   information dictionary (Title, Author, Subject, Keywords).
 - **MOBI / AZW** metadata lives in the Palm-database EXTH records. The app parses them,
-  rewrites the managed fields, rebuilds record 0, and fixes up the record offset table —
-  leaving the book text and any unmanaged records (e.g. cover offset) untouched. Only
-  DRM-free files can be edited.
+  rewrites the managed fields, rebuilds each header record, and recomputes the record
+  offset table — leaving the book text and any unmanaged records (e.g. cover offset)
+  untouched. Combined MOBI + KF8 (AZW3) files carry two header records; both are updated
+  so they stay in sync. Only DRM-free files can be edited.
 
 ## License
 

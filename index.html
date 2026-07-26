@@ -314,7 +314,7 @@
       PDF metadata is stored in the document info. Title, author, subject and keywords are edited here.
     </div>
     <div id="mobiNote" class="note hidden">
-      Editing the MOBI/AZW book record. Combined MOBI+KF8 files may keep a second copy of some fields that this tool doesn't change.
+      Editing the MOBI / AZW metadata. Combined MOBI + KF8 files are updated in both parts so they stay in sync. DRM-protected files can't be edited.
     </div>
 
     <footer class="credit">All processing happens locally in your browser.</footer>
@@ -697,6 +697,15 @@
     return new Uint8Array(out);
   }
 
+  // A record is a MOBI/KF8 header if its PalmDOC header is followed by "MOBI"
+  // and it isn't encrypted. Combined MOBI+KF8 files have two such records.
+  function mobiRecIsHeader(buf, start, end) {
+    if (end - start < 16 + 0x78) return false;
+    if (!(buf[start + 16] === 0x4D && buf[start + 17] === 0x4F && buf[start + 18] === 0x42 && buf[start + 19] === 0x49)) return false; // "MOBI"
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    return dv.getUint16(start + 12, false) === 0; // encryption type == none
+  }
+
   function mobiParse(buf) {
     if (buf.length < 78) throw new Error("Not a valid MOBI file.");
     const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
@@ -706,7 +715,7 @@
     const numRecords = bu16(76);
     if (numRecords < 1) throw new Error("This MOBI has no records.");
     const recOffsets = []; for (let i = 0; i < numRecords; i++) recOffsets.push(bu32(78 + i * 8));
-    const rec0 = recOffsets[0], rec1 = numRecords > 1 ? recOffsets[1] : buf.length;
+    const rec0 = recOffsets[0];
     if (rec0 + 16 > buf.length) throw new Error("This MOBI's first record is truncated.");
     if (bu16(rec0 + 12) !== 0) throw new Error("This MOBI is DRM-protected, so its metadata can't be edited. (Only DRM-free files work.)");
     const mobiStart = rec0 + 16;
@@ -714,9 +723,7 @@
     const mobiHeaderLen = bu32(mobiStart + 4);
     if (mobiHeaderLen < 0x78 || mobiStart + mobiHeaderLen > buf.length) throw new Error("Unsupported or damaged MOBI header.");
     const textEncoding = bu32(mobiStart + 28);
-    const fullNameOffset = bu32(mobiStart + 0x54);
-    const fullNameLength = bu32(mobiStart + 0x58);
-    const exthFlags = bu32(mobiStart + 0x70);
+    const fullNameOffset = bu32(mobiStart + 0x54), fullNameLength = bu32(mobiStart + 0x58), exthFlags = bu32(mobiStart + 0x70);
     const dec = mobiDecoder(textEncoding);
     const exthRecords = [];
     if (exthFlags & 0x40) {
@@ -737,7 +744,15 @@
     const getAll = (t) => exthRecords.filter((r) => r.type === t).map((r) => dec.decode(r.data));
     const g1 = (t) => { const a = getAll(t); return a.length ? a[0] : ""; };
     const meta = { title: g1(503) || fullName, authors: getAll(100), publisher: g1(101), description: g1(103), subjects: getAll(105), date: g1(106), language: g1(524), isbn: g1(104) };
-    return { buf, numRecords, recOffsets, rec0, rec1, mobiStart, mobiHeaderLen, textEncoding, exthRecords, meta };
+    // A combined MOBI/KF8 file carries a second header record (the KF8/AZW3 part).
+    // Find every header record so we can update them all and keep them in sync.
+    const headerIndices = [];
+    for (let i = 0; i < numRecords; i++) {
+      const s = recOffsets[i], e = (i + 1 < numRecords) ? recOffsets[i + 1] : buf.length;
+      if (mobiRecIsHeader(buf, s, e)) headerIndices.push(i);
+    }
+    if (!headerIndices.length) headerIndices.push(0);
+    return { buf, numRecords, recOffsets, headerIndices, textEncoding, meta };
   }
 
   function loadMobi(buf) {
@@ -752,11 +767,70 @@
     $("f_language").value = m.language || "";
     fillMulti("identifier", m.isbn ? [m.isbn] : []);
     const ext = (originalName.match(/\.(azw3|azw|mobi|prc)$/i) || [])[1];
-    setPill(ext ? ext.toUpperCase() : "MOBI");
+    const kf8 = mobiState.headerIndices.length > 1;
+    setPill((ext ? ext.toUpperCase() : "MOBI") + (kf8 ? " · KF8" : ""));
+  }
+
+  // Rebuild one MOBI/KF8 header record (PalmDOC + MOBI header + EXTH + full name)
+  // with the edited metadata, preserving the header bytes and any unmanaged EXTH
+  // records (cover offset, KF8 boundary, …).
+  function rebuildMobiHeaderRecord(rec, vals) {
+    const dv = new DataView(rec.buffer, rec.byteOffset, rec.byteLength);
+    const bu32 = (o) => dv.getUint32(o, false);
+    const asc = (o, n) => { let s = ""; for (let i = 0; i < n; i++) s += String.fromCharCode(rec[o + i]); return s; };
+    const mobiHeaderLen = bu32(20);            // 16 + 4
+    const enc = bu32(44);                       // 16 + 28 (text encoding)
+    const E = (s) => mobiEncode(s, enc);
+    const exthFlags = bu32(16 + 0x70);
+    const existing = [];
+    if (exthFlags & 0x40) {
+      const es = 16 + mobiHeaderLen;
+      if (asc(es, 4) === "EXTH") {
+        const count = bu32(es + 8); let p = es + 12;
+        for (let i = 0; i < count && p + 8 <= rec.length; i++) {
+          const t = bu32(p), l = bu32(p + 4);
+          if (l < 8 || p + l > rec.length) break;
+          existing.push({ type: t, data: rec.slice(p + 8, p + l) });
+          p += l;
+        }
+      }
+    }
+    const MANAGED = new Set([100, 101, 103, 104, 105, 106, 503, 524]);
+    const recs = existing.filter((r) => !MANAGED.has(r.type));
+    if (vals.title) recs.push({ type: 503, data: E(vals.title) });
+    vals.authors.forEach((a) => recs.push({ type: 100, data: E(a) }));
+    if (vals.publisher) recs.push({ type: 101, data: E(vals.publisher) });
+    if (vals.description) recs.push({ type: 103, data: E(vals.description) });
+    if (vals.isbn) recs.push({ type: 104, data: E(vals.isbn) });
+    vals.subjects.forEach((s) => recs.push({ type: 105, data: E(s) }));
+    if (vals.date) recs.push({ type: 106, data: E(vals.date) });
+    if (vals.language) recs.push({ type: 524, data: E(vals.language) });
+
+    let body = 0; for (const r of recs) body += 8 + r.data.length;
+    const total = 12 + body, padE = (4 - (total % 4)) % 4, exthLen = total + padE;
+    const exth = new Uint8Array(exthLen), edv = new DataView(exth.buffer);
+    exth[0] = 0x45; exth[1] = 0x58; exth[2] = 0x54; exth[3] = 0x48; // "EXTH"
+    edv.setUint32(4, exthLen, false); edv.setUint32(8, recs.length, false);
+    let p = 12;
+    for (const r of recs) { edv.setUint32(p, r.type, false); edv.setUint32(p + 4, 8 + r.data.length, false); exth.set(r.data, p + 8); p += 8 + r.data.length; }
+
+    const nameBytes = E(vals.title || "Untitled");
+    const palm = rec.slice(0, 16);
+    const mobiHeader = rec.slice(16, 16 + mobiHeaderLen);
+    const mdv = new DataView(mobiHeader.buffer, mobiHeader.byteOffset, mobiHeader.byteLength);
+    const newNameOff = 16 + mobiHeaderLen + exth.length;
+    mdv.setUint32(0x54, newNameOff, false);
+    mdv.setUint32(0x58, nameBytes.length, false);
+    mdv.setUint32(0x70, mdv.getUint32(0x70, false) | 0x40, false);
+    const bodyLen = 16 + mobiHeaderLen + exth.length + nameBytes.length;
+    const padN = (4 - (bodyLen % 4)) % 4;
+    const out = new Uint8Array(bodyLen + padN);
+    out.set(palm, 0); out.set(mobiHeader, 16); out.set(exth, 16 + mobiHeaderLen); out.set(nameBytes, newNameOff);
+    return out;
   }
 
   function buildMobiBytes() {
-    const m = mobiState, enc = m.textEncoding, E = (s) => mobiEncode(s, enc);
+    const m = mobiState;
     const vals = {
       title: $("f_title").value.trim(),
       authors: multiValues("creator"),
@@ -767,58 +841,27 @@
       language: $("f_language").value.trim(),
       isbn: (multiValues("identifier")[0] || "").trim(),
     };
-    const MANAGED = new Set([100, 101, 103, 104, 105, 106, 503, 524]);
-    const recs = m.exthRecords.filter((r) => !MANAGED.has(r.type));
-    if (vals.title) recs.push({ type: 503, data: E(vals.title) });
-    vals.authors.forEach((a) => recs.push({ type: 100, data: E(a) }));
-    if (vals.publisher) recs.push({ type: 101, data: E(vals.publisher) });
-    if (vals.description) recs.push({ type: 103, data: E(vals.description) });
-    if (vals.isbn) recs.push({ type: 104, data: E(vals.isbn) });
-    vals.subjects.forEach((s) => recs.push({ type: 105, data: E(s) }));
-    if (vals.date) recs.push({ type: 106, data: E(vals.date) });
-    if (vals.language) recs.push({ type: 524, data: E(vals.language) });
+    const recBytes = (i) => m.buf.slice(m.recOffsets[i], (i + 1 < m.numRecords) ? m.recOffsets[i + 1] : m.buf.length);
+    const edits = {};
+    for (const idx of m.headerIndices) edits[idx] = rebuildMobiHeaderRecord(recBytes(idx), vals);
 
-    // Serialize EXTH header (padded to a multiple of 4)
-    let body = 0; for (const r of recs) body += 8 + r.data.length;
-    const total = 12 + body, padE = (4 - (total % 4)) % 4, exthLen = total + padE;
-    const exth = new Uint8Array(exthLen), edv = new DataView(exth.buffer);
-    exth[0] = 0x45; exth[1] = 0x58; exth[2] = 0x54; exth[3] = 0x48; // "EXTH"
-    edv.setUint32(4, exthLen, false); edv.setUint32(8, recs.length, false);
-    let p = 12;
-    for (const r of recs) { edv.setUint32(p, r.type, false); edv.setUint32(p + 4, 8 + r.data.length, false); exth.set(r.data, p + 8); p += 8 + r.data.length; }
-
-    const nameBytes = E(vals.title || m.meta.title || "Untitled");
-
-    // Reassemble record 0: PalmDOC header + MOBI header + EXTH + full name (+ pad)
-    const palm = m.buf.slice(m.rec0, m.rec0 + 16);
-    const mobiHeader = m.buf.slice(m.mobiStart, m.mobiStart + m.mobiHeaderLen);
-    const mdv = new DataView(mobiHeader.buffer, mobiHeader.byteOffset, mobiHeader.byteLength);
-    const newNameOff = 16 + m.mobiHeaderLen + exth.length;
-    mdv.setUint32(0x54, newNameOff, false);
-    mdv.setUint32(0x58, nameBytes.length, false);
-    mdv.setUint32(0x70, mdv.getUint32(0x70, false) | 0x40, false);
-    const bodyLen = 16 + m.mobiHeaderLen + exth.length + nameBytes.length;
-    const padN = (4 - (bodyLen % 4)) % 4;
-    const rec0 = new Uint8Array(bodyLen + padN);
-    rec0.set(palm, 0);
-    rec0.set(mobiHeader, 16);
-    rec0.set(exth, 16 + m.mobiHeaderLen);
-    rec0.set(nameBytes, newNameOff);
-
-    // Shift the offsets of every later record by the size change of record 0
-    const oldRec0Off = m.recOffsets[0], oldRec1Off = m.rec1;
-    const delta = rec0.length - (oldRec1Off - oldRec0Off);
-    const head = m.buf.slice(0, oldRec0Off);
+    // Reassemble the whole file, recomputing every record offset from scratch —
+    // any number of header records (MOBI6 + KF8) may have changed size.
+    const headLen = m.recOffsets[0];
+    const chunks = []; const newOffsets = []; let cursor = headLen;
+    for (let i = 0; i < m.numRecords; i++) { newOffsets.push(cursor); const b = edits[i] || recBytes(i); chunks.push(b); cursor += b.length; }
+    const head = m.buf.slice(0, headLen);
     const hdv = new DataView(head.buffer, head.byteOffset, head.byteLength);
-    for (let i = 1; i < m.numRecords; i++) hdv.setUint32(78 + i * 8, hdv.getUint32(78 + i * 8, false) + delta, false);
-    // Update Palm database name (bytes 0..31) to the title
-    const pdbName = E(vals.title || "Untitled");
+    for (let i = 0; i < m.numRecords; i++) hdv.setUint32(78 + i * 8, newOffsets[i], false);
+    const pdbName = mobiEncode(vals.title || "Untitled", m.textEncoding);
     for (let i = 0; i < 32; i++) head[i] = 0;
     head.set(pdbName.slice(0, 31), 0);
 
-    const tail = m.buf.slice(oldRec1Off);
-    const out = new Uint8Array(head.length + rec0.length + tail.length);
-    out.set(head, 0); out.set(rec0, head.length); out.set(tail, head.length + rec0.length);
+    let total = headLen; for (const c of chunks) total += c.length;
+    const out = new Uint8Array(total);
+    out.set(head, 0);
+    let off = headLen;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
     return out;
   }
   function buildMobiBlob() { return new Blob([buildMobiBytes()], { type: "application/x-mobipocket-ebook" }); }
