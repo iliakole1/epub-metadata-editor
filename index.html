@@ -146,6 +146,17 @@
   .pill { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent);
     padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
 
+  .repair {
+    display: flex; gap: 9px; align-items: flex-start;
+    margin-top: 12px; padding: 11px 12px; border-radius: 11px;
+    font-size: 12.5px; line-height: 1.4;
+    background: color-mix(in srgb, #f59e0b 14%, var(--card));
+    border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border));
+    color: var(--text);
+  }
+  .repair .ic { font-size: 15px; line-height: 1.2; flex: none; }
+  .repair strong { font-weight: 700; }
+
   /* Sticky action bar */
   .actionbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
@@ -211,6 +222,10 @@
         <span class="name" id="fileName">book.epub</span>
         <span class="pill" id="epubVer">EPUB</span>
         <button class="iconbtn" id="closeBtn" title="Open a different file" style="margin-left:auto;width:auto;padding:0 12px;font-size:13px;">Change file</button>
+      </div>
+      <div id="repairBanner" class="repair hidden">
+        <span class="ic">🛠️</span>
+        <span>This file was incomplete and has been <strong>automatically repaired</strong>. Tap <strong>Save EPUB</strong> to download a clean, working copy.</span>
       </div>
     </div>
 
@@ -313,6 +328,7 @@
   let coverPath = null;     // path of cover image inside zip
   let coverReplacement = null; // { data: Uint8Array, path } when user swaps cover
   let snapshot = null;      // captured form values for Reset
+  let wasRepaired = false;  // true when the opened file had to be auto-repaired
 
   // ---- element helpers ----
   const $ = (id) => document.getElementById(id);
@@ -347,11 +363,134 @@
 
   function resetToStart() {
     zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = snapshot = null;
+    wasRepaired = false;
     editor.classList.add("hidden");
     actionbar.classList.add("hidden");
+    $("repairBanner").classList.add("hidden");
     $("dropCard").classList.remove("hidden");
     fileInput.value = "";
     window.scrollTo(0, 0);
+  }
+
+  // ---- in-browser recovery of truncated/corrupted zips ----
+  // When JSZip can't read the archive (missing or partial central directory /
+  // end-of-central-directory, e.g. an interrupted download), we walk the intact
+  // local file headers and rebuild a fresh central directory + EOCD from them —
+  // the same idea as `zip -FF`. Returns a Uint8Array of a repaired zip, or null.
+  const SIG = { LFH: 0x04034b50, CDH: 0x02014b50, EOCD: 0x06054b50, DD: 0x08074b50 };
+
+  function rebuildZip(buf) {
+    if (buf.length < 4) return null;
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const u16 = (o) => dv.getUint16(o, true);
+    const u32 = (o) => dv.getUint32(o, true);
+    if (u32(0) !== SIG.LFH) return null; // must start with a local file header
+
+    const entries = [];
+    let pos = 0, sectionEnd = 0;
+    const len = buf.length;
+
+    while (pos + 30 <= len && u32(pos) === SIG.LFH) {
+      const flag = u16(pos + 6);
+      const method = u16(pos + 8);
+      const modtime = u16(pos + 10);
+      const moddate = u16(pos + 12);
+      let crc = u32(pos + 14);
+      let comp = u32(pos + 18);
+      let uncomp = u32(pos + 22);
+      const fnLen = u16(pos + 26);
+      const exLen = u16(pos + 28);
+      const nameStart = pos + 30;
+      const dataStart = nameStart + fnLen + exLen;
+      if (dataStart > len) break; // this header is itself truncated — stop
+      const nameBytes = buf.slice(nameStart, nameStart + fnLen);
+
+      const hasDD = (flag & 0x08) !== 0;
+      let dataEnd, nextPos;
+
+      if (!hasDD && comp > 0) {
+        dataEnd = dataStart + comp;
+        if (dataEnd > len) break;      // data truncated — drop this last entry
+        nextPos = dataEnd;
+      } else if (!hasDD && comp === 0) {
+        dataEnd = nextPos = dataStart; // genuinely empty entry
+      } else {
+        // Compressed size unknown (streamed with a data descriptor). Scan forward
+        // to the next local/central-dir signature to bound the data.
+        let scan = dataStart, found = -1;
+        while (scan + 4 <= len) {
+          const s = u32(scan);
+          if (s === SIG.LFH || s === SIG.CDH) { found = scan; break; }
+          scan++;
+        }
+        if (found === -1) break;       // runs to EOF — can't trust it
+        nextPos = found;
+        dataEnd = found;
+        // Trim a trailing data descriptor (12 bytes, or 16 with its signature)
+        // and lift the real crc/sizes from it.
+        if (dataEnd - 16 >= dataStart && u32(dataEnd - 16) === SIG.DD) {
+          crc = u32(dataEnd - 12); comp = u32(dataEnd - 8); uncomp = u32(dataEnd - 4);
+          dataEnd -= 16;
+        } else if (dataEnd - 12 >= dataStart) {
+          crc = u32(dataEnd - 12); comp = u32(dataEnd - 8); uncomp = u32(dataEnd - 4);
+          dataEnd -= 12;
+        }
+      }
+
+      entries.push({ offset: pos, flag, method, modtime, moddate, crc,
+                     comp: dataEnd - dataStart, uncomp, nameBytes });
+      sectionEnd = nextPos;
+      pos = nextPos;
+    }
+
+    if (!entries.length) return null;
+
+    // Rebuild central directory
+    const cdChunks = [];
+    let cdSize = 0;
+    for (const e of entries) {
+      const nlen = e.nameBytes.length;
+      const h = new Uint8Array(46 + nlen);
+      const d = new DataView(h.buffer);
+      d.setUint32(0, SIG.CDH, true);
+      d.setUint16(4, 20, true);            // version made by
+      d.setUint16(6, 20, true);            // version needed
+      d.setUint16(8, e.flag, true);
+      d.setUint16(10, e.method, true);
+      d.setUint16(12, e.modtime, true);
+      d.setUint16(14, e.moddate, true);
+      d.setUint32(16, e.crc >>> 0, true);
+      d.setUint32(20, e.comp >>> 0, true);
+      d.setUint32(24, e.uncomp >>> 0, true);
+      d.setUint16(28, nlen, true);         // filename length
+      d.setUint16(30, 0, true);            // extra length
+      d.setUint16(32, 0, true);            // comment length
+      d.setUint16(34, 0, true);            // disk number start
+      d.setUint16(36, 0, true);            // internal attrs
+      d.setUint32(38, 0, true);            // external attrs
+      d.setUint32(42, e.offset >>> 0, true); // offset of local header
+      h.set(e.nameBytes, 46);
+      cdChunks.push(h);
+      cdSize += h.length;
+    }
+
+    // End of central directory record
+    const eocd = new Uint8Array(22);
+    const ed = new DataView(eocd.buffer);
+    ed.setUint32(0, SIG.EOCD, true);
+    ed.setUint16(8, entries.length, true);
+    ed.setUint16(10, entries.length, true);
+    ed.setUint32(12, cdSize, true);
+    ed.setUint32(16, sectionEnd, true);    // CD starts right after local section
+
+    // Assemble: [ intact local section | fresh CD | EOCD ]
+    const total = sectionEnd + cdSize + eocd.length;
+    const out = new Uint8Array(total);
+    out.set(buf.slice(0, sectionEnd), 0);
+    let off = sectionEnd;
+    for (const c of cdChunks) { out.set(c, off); off += c.length; }
+    out.set(eocd, off);
+    return out;
   }
 
   async function loadFile(file) {
@@ -361,13 +500,24 @@
     }
     try {
       originalName = file.name;
+      wasRepaired = false;
+      const buf = new Uint8Array(await file.arrayBuffer());
       try {
-        zip = await JSZip.loadAsync(file);
+        zip = await JSZip.loadAsync(buf);
       } catch (zerr) {
-        // JSZip couldn't read the archive at all — almost always a truncated
-        // or corrupted download (missing/partial central directory).
-        console.error(zerr);
-        throw new Error("This file looks incomplete or corrupted — its archive index is damaged, so it can't be opened. This usually means the download was cut short. Try downloading the book again.");
+        // JSZip couldn't read the archive — almost always a truncated or
+        // corrupted download (missing/partial central directory). Try to
+        // rebuild it in-browser from the intact local file headers.
+        console.warn("Primary open failed, attempting recovery:", zerr);
+        let rebuilt = null;
+        try { rebuilt = rebuildZip(buf); } catch (rerr) { console.error(rerr); }
+        if (rebuilt) {
+          try { zip = await JSZip.loadAsync(rebuilt); wasRepaired = true; }
+          catch (e2) { console.error(e2); zip = null; }
+        }
+        if (!zip) {
+          throw new Error("This file is incomplete or corrupted and couldn't be repaired — too much of it is missing. This usually means the download was cut short; try downloading the book again.");
+        }
       }
 
       // Locate the OPF via META-INF/container.xml
@@ -398,9 +548,10 @@
       $("dropCard").classList.add("hidden");
       editor.classList.remove("hidden");
       actionbar.classList.remove("hidden");
+      $("repairBanner").classList.toggle("hidden", !wasRepaired);
       snapshot = captureForm();
       window.scrollTo(0, 0);
-      toast("Loaded ✓");
+      toast(wasRepaired ? "File was incomplete — auto-repaired ✓" : "Loaded ✓");
     } catch (err) {
       console.error(err);
       toast(err.message || "Could not read that EPUB", true);
