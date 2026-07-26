@@ -324,8 +324,10 @@
     toastEl.classList.toggle("err", isErr);
     toastEl.classList.add("show");
     clearTimeout(toast._t);
-    toast._t = setTimeout(() => toastEl.classList.remove("show"), 2600);
+    // Errors linger longer (and are dismissible) since they carry more to read.
+    toast._t = setTimeout(() => toastEl.classList.remove("show"), isErr ? 8000 : 2600);
   }
+  toastEl.addEventListener("click", () => toastEl.classList.remove("show"));
 
   // ---- file picking ----
   drop.addEventListener("click", () => fileInput.click());
@@ -359,7 +361,14 @@
     }
     try {
       originalName = file.name;
-      zip = await JSZip.loadAsync(file);
+      try {
+        zip = await JSZip.loadAsync(file);
+      } catch (zerr) {
+        // JSZip couldn't read the archive at all — almost always a truncated
+        // or corrupted download (missing/partial central directory).
+        console.error(zerr);
+        throw new Error("This file looks incomplete or corrupted — its archive index is damaged, so it can't be opened. This usually means the download was cut short. Try downloading the book again.");
+      }
 
       // Locate the OPF via META-INF/container.xml
       const containerFile = zip.file(CONTAINER);
