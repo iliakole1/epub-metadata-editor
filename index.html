@@ -4,10 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#4f46e5">
-<meta name="description" content="Manage, read and edit your EPUB books privately in your browser. Nothing is uploaded.">
-<title>EPUB Library</title>
+<meta name="description" content="Repair and edit ebook metadata (EPUB, PDF, MOBI) privately in your browser. Nothing is uploaded.">
+<title>Ebook Metadata Editor</title>
 <link rel="manifest" href="manifest.webmanifest">
-<link rel="apple-touch-icon" href="icon.svg">
 <style>
   :root {
     --bg: #f6f7fb;
@@ -46,13 +45,10 @@
     padding-bottom: env(safe-area-inset-bottom);
     -webkit-font-smoothing: antialiased;
   }
-  .wrap { max-width: 860px; margin: 0 auto; padding: 18px 16px 120px; }
-  a { color: var(--accent); }
-
-  /* ---------- Top app bar ---------- */
+  .wrap { max-width: 720px; margin: 0 auto; padding: 20px 16px 120px; }
   header.app {
     display: flex; align-items: center; gap: 12px;
-    padding: 6px 2px 14px;
+    padding: 6px 2px 18px;
   }
   header.app .logo {
     width: 40px; height: 40px; border-radius: 11px; flex: none;
@@ -62,13 +58,6 @@
   }
   header.app h1 { font-size: 19px; margin: 0; font-weight: 700; letter-spacing: -.01em; }
   header.app p { margin: 1px 0 0; font-size: 12.5px; color: var(--muted); }
-  header.app .spacer { flex: 1; }
-  .backbtn {
-    display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-    background: var(--field); border: 1px solid var(--border); color: var(--text);
-    border-radius: 11px; padding: 8px 13px; font: inherit; font-size: 14px; font-weight: 600;
-  }
-  .backbtn:active { transform: scale(.97); }
 
   .card {
     background: var(--card);
@@ -79,233 +68,189 @@
     margin-bottom: 16px;
   }
 
-  /* ---------- Library toolbar ---------- */
-  .toolbar { display: flex; gap: 10px; align-items: center; margin-bottom: 16px; }
-  .search {
-    flex: 1; position: relative; min-width: 0;
-  }
-  .search input {
-    width: 100%; font: inherit; color: var(--text); background: var(--field);
-    border: 1px solid var(--border); border-radius: 12px; padding: 11px 12px 11px 36px;
-  }
-  .search .mag { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--muted); font-size: 14px; pointer-events: none; }
-  .search input:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 20%, transparent); }
-  select.sort {
-    font: inherit; color: var(--text); background: var(--field);
-    border: 1px solid var(--border); border-radius: 12px; padding: 11px 10px; max-width: 44%;
-  }
-  .addbtn-main {
-    flex: none; display: inline-flex; align-items: center; gap: 6px; cursor: pointer;
-    background: var(--accent); color: #fff; border: none; border-radius: 12px;
-    padding: 11px 15px; font: inherit; font-weight: 700; font-size: 14px;
-  }
-  .addbtn-main:active { transform: scale(.97); background: var(--accent-press); }
-  .addbtn-main .plus { font-size: 17px; line-height: 1; }
-
-  .libcount { font-size: 12.5px; color: var(--muted); margin: 0 2px 12px; }
-
-  /* ---------- Book grid ---------- */
-  .shelf { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 16px 14px; }
-  @media (max-width: 380px) { .shelf { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); } }
-  .book { cursor: pointer; position: relative; }
-  .book .thumb {
-    aspect-ratio: 2/3; border-radius: 11px; overflow: hidden;
-    background: linear-gradient(135deg, color-mix(in srgb, var(--accent) 16%, var(--field)), var(--field));
-    border: 1px solid var(--border); display: grid; place-items: center; position: relative;
-    box-shadow: var(--shadow);
-  }
-  .book .thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
-  .book .thumb .ph { font-size: 12.5px; color: var(--muted); padding: 10px; text-align: center; font-weight: 600; line-height: 1.3; }
-  .book:active .thumb { transform: scale(.98); }
-  .book .t {
-    font-size: 12.5px; font-weight: 650; margin-top: 8px; line-height: 1.25;
-    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .book .a {
-    font-size: 11.5px; color: var(--muted); margin-top: 2px; line-height: 1.2;
-    display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
-  }
-  .book .badge {
-    position: absolute; top: 7px; left: 7px; background: color-mix(in srgb, #f59e0b 90%, #000);
-    color: #fff; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 7px;
-  }
-  .book .del {
-    position: absolute; top: 6px; right: 6px; width: 28px; height: 28px; border-radius: 8px;
-    background: rgba(0,0,0,.55); color: #fff; border: none; cursor: pointer;
-    display: grid; place-items: center; font-size: 15px; backdrop-filter: blur(4px);
-    opacity: 0; transition: opacity .12s;
-  }
-  .book:hover .del, .book:focus-within .del { opacity: 1; }
-  @media (hover: none) { .book .del { opacity: .9; } }
-  .book .del:active { transform: scale(.9); }
-
-  /* ---------- Drop / empty state ---------- */
+  /* Drop zone */
   .drop {
-    border: 2px dashed var(--border); border-radius: var(--radius); background: var(--card);
-    padding: 40px 20px; text-align: center; transition: border-color .15s, background .15s;
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    background: var(--card);
+    padding: 34px 20px;
+    text-align: center;
+    transition: border-color .15s, background .15s, transform .1s;
     cursor: pointer;
   }
   .drop.drag { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--card)); }
-  .drop .big { font-size: 44px; line-height: 1; }
-  .drop h2 { margin: 14px 0 4px; font-size: 17px; }
-  .drop p { margin: 0; color: var(--muted); font-size: 13.5px; }
+  .drop .big { font-size: 40px; line-height: 1; }
+  .drop h2 { margin: 12px 0 4px; font-size: 16px; }
+  .drop p { margin: 0; color: var(--muted); font-size: 13px; }
   .drop .browse { color: var(--accent); font-weight: 600; }
-  .privacy { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 14px; }
+  .drop .formats { margin-top: 9px; font-size: 12px; letter-spacing: .04em; color: var(--muted); opacity: .9; }
 
-  /* ---------- Editor form ---------- */
   label.field { display: block; margin-bottom: 15px; }
-  label.field > .lbl, .multi > .lbl {
+  label.field > .lbl {
     display: flex; align-items: baseline; justify-content: space-between;
     font-size: 12.5px; font-weight: 600; color: var(--muted);
     margin-bottom: 6px; letter-spacing: .01em;
   }
-  label.field .hint, .multi .hint { font-weight: 400; font-size: 11px; }
+  label.field .hint { font-weight: 400; font-size: 11px; }
   input[type=text], input[type=date], textarea, select {
-    width: 100%; font: inherit; color: var(--text); background: var(--field);
-    border: 1px solid var(--border); border-radius: 11px; padding: 11px 12px;
-    transition: border-color .12s, box-shadow .12s; appearance: none;
+    width: 100%; font: inherit; color: var(--text);
+    background: var(--field);
+    border: 1px solid var(--border);
+    border-radius: 11px;
+    padding: 11px 12px;
+    transition: border-color .12s, box-shadow .12s;
+    appearance: none;
   }
   input:focus, textarea:focus, select:focus {
     outline: none; border-color: var(--accent);
     box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
   }
   textarea { resize: vertical; min-height: 92px; }
-  .multi .rows .row { display: flex; gap: 8px; margin-bottom: 8px; }
+
+  /* Multi-value chips-with-inputs list */
+  .multi { margin-bottom: 4px; }
+  .multi .row { display: flex; gap: 8px; margin-bottom: 8px; }
   .multi .row input { flex: 1; }
+  .multi > .lbl { display: block; font-size: 12.5px; font-weight: 600; color: var(--muted); margin-bottom: 6px; }
+  .multi > .lbl .hint { font-weight: 400; font-size: 11px; }
   .iconbtn {
-    flex: none; width: 44px; border: 1px solid var(--border); background: var(--field);
-    color: var(--muted); border-radius: 11px; font-size: 18px; cursor: pointer;
+    flex: none; width: 44px; border: 1px solid var(--border);
+    background: var(--field); color: var(--muted);
+    border-radius: 11px; font-size: 18px; cursor: pointer;
   }
   .iconbtn:active { transform: scale(.96); }
-  .addrow {
+  .addbtn {
     background: none; border: 1px dashed var(--border); color: var(--accent);
-    border-radius: 11px; padding: 9px 12px; font: inherit; font-weight: 600; font-size: 13px;
-    cursor: pointer; width: 100%;
+    border-radius: 11px; padding: 9px 12px; font: inherit; font-weight: 600;
+    font-size: 13px; cursor: pointer; width: 100%;
   }
+
+  /* Cover */
   .cover-wrap { display: flex; gap: 16px; align-items: flex-start; }
   .cover-frame {
-    width: 108px; flex: none; aspect-ratio: 2/3; border-radius: 10px; background: var(--field);
-    border: 1px solid var(--border); overflow: hidden; display: grid; place-items: center;
+    width: 108px; flex: none; aspect-ratio: 2/3; border-radius: 10px;
+    background: var(--field); border: 1px solid var(--border);
+    overflow: hidden; display: grid; place-items: center;
   }
   .cover-frame img { width: 100%; height: 100%; object-fit: cover; display: block; }
   .cover-frame .none { color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
   .cover-actions { flex: 1; min-width: 0; }
   .cover-actions p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   @media (max-width: 460px) { .grid2 { grid-template-columns: 1fr; } }
+
   .section-title { font-size: 13px; font-weight: 700; margin: 4px 2px 12px; letter-spacing: .02em; text-transform: uppercase; color: var(--muted); }
-  .filebar { display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--muted); flex-wrap: wrap; }
+
+  .filebar {
+    display: flex; align-items: center; gap: 10px; font-size: 13px;
+    color: var(--muted); margin-bottom: 4px; flex-wrap: wrap;
+  }
   .filebar .name { color: var(--text); font-weight: 600; word-break: break-all; }
-  .pill { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent); padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+  .pill { background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent);
+    padding: 2px 9px; border-radius: 999px; font-size: 11px; font-weight: 600; }
+
   .repair {
-    display: flex; gap: 9px; align-items: flex-start; margin-top: 12px; padding: 11px 12px;
-    border-radius: 11px; font-size: 12.5px; line-height: 1.4;
+    display: flex; gap: 9px; align-items: flex-start;
+    margin-top: 12px; padding: 11px 12px; border-radius: 11px;
+    font-size: 12.5px; line-height: 1.4;
     background: color-mix(in srgb, #f59e0b 14%, var(--card));
-    border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border)); color: var(--text);
+    border: 1px solid color-mix(in srgb, #f59e0b 40%, var(--border));
+    color: var(--text);
   }
   .repair .ic { font-size: 15px; line-height: 1.2; flex: none; }
   .repair strong { font-weight: 700; }
 
-  /* ---------- Sticky action bar ---------- */
+  .note {
+    margin-top: 12px; padding: 10px 12px; border-radius: 11px; font-size: 12px; line-height: 1.4;
+    background: color-mix(in srgb, var(--accent) 8%, var(--card));
+    border: 1px solid var(--border); color: var(--muted);
+  }
+
+  /* Sticky action bar */
   .actionbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 20;
     background: color-mix(in srgb, var(--card) 92%, transparent);
-    backdrop-filter: saturate(1.4) blur(12px); -webkit-backdrop-filter: saturate(1.4) blur(12px);
+    backdrop-filter: saturate(1.4) blur(12px);
+    -webkit-backdrop-filter: saturate(1.4) blur(12px);
     border-top: 1px solid var(--border);
     padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
   }
-  .actionbar .inner { max-width: 860px; margin: 0 auto; display: flex; gap: 10px; }
-  .btn { font: inherit; font-weight: 700; font-size: 15px; border-radius: 13px; padding: 13px 16px; cursor: pointer; border: 1px solid transparent; transition: transform .08s, background .12s; }
+  .actionbar .inner { max-width: 720px; margin: 0 auto; display: flex; gap: 10px; }
+  .btn {
+    flex: 1; font: inherit; font-weight: 700; font-size: 15px;
+    border-radius: 13px; padding: 13px 16px; cursor: pointer; border: 1px solid transparent;
+    transition: transform .08s, background .12s;
+  }
   .btn:active { transform: translateY(1px); }
-  .btn.primary { flex: 1; background: var(--accent); color: #fff; }
+  .btn.primary { background: var(--accent); color: #fff; }
   .btn.primary:active { background: var(--accent-press); }
   .btn.primary:disabled { opacity: .5; cursor: default; }
   .btn.ghost { background: var(--field); color: var(--text); border-color: var(--border); flex: 0 0 auto; }
 
   .hidden { display: none !important; }
 
-  /* ---------- Toast & progress ---------- */
   .toast {
     position: fixed; left: 50%; bottom: calc(84px + env(safe-area-inset-bottom));
-    transform: translateX(-50%) translateY(20px); background: var(--text); color: var(--bg);
+    transform: translateX(-50%) translateY(20px);
+    background: var(--text); color: var(--bg);
     padding: 11px 18px; border-radius: 12px; font-size: 13.5px; font-weight: 600;
     box-shadow: 0 8px 30px rgba(0,0,0,.3); opacity: 0; pointer-events: none;
     transition: opacity .2s, transform .2s; z-index: 40; max-width: 90vw; text-align: center;
   }
   .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
   .toast.err { background: var(--danger); color: #fff; }
-  .overlay {
-    position: fixed; inset: 0; z-index: 50; background: color-mix(in srgb, var(--bg) 70%, transparent);
-    backdrop-filter: blur(3px); display: grid; place-items: center;
-  }
-  .overlay .box { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 22px 26px; box-shadow: var(--shadow); text-align: center; font-weight: 600; font-size: 14px; }
-  .spin { width: 26px; height: 26px; margin: 0 auto 12px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; animation: sp .8s linear infinite; }
-  @keyframes sp { to { transform: rotate(360deg); } }
 
   footer.credit { text-align: center; color: var(--muted); font-size: 11.5px; margin-top: 6px; }
+  footer.credit a { color: var(--muted); }
 </style>
 </head>
 <body>
 <div class="wrap">
   <header class="app">
-    <div class="logo">📚</div>
-    <div id="headText">
-      <h1>My EPUB Library</h1>
-      <p>Manage & edit your books — all on your device.</p>
+    <div class="logo">📖</div>
+    <div>
+      <h1>Ebook Metadata Editor</h1>
+      <p>Repair &amp; edit book details privately — nothing leaves your device.</p>
     </div>
-    <div class="spacer"></div>
-    <button id="backBtn" class="backbtn hidden">‹ Library</button>
   </header>
 
-  <!-- =================== LIBRARY VIEW =================== -->
-  <div id="libraryView">
-    <div id="libToolbar" class="toolbar hidden">
-      <div class="search">
-        <span class="mag">🔍</span>
-        <input id="searchInput" type="text" placeholder="Search title or author" autocomplete="off">
-      </div>
-      <select id="sortSelect" class="sort" aria-label="Sort">
-        <option value="added">Recently added</option>
-        <option value="title">Title A–Z</option>
-        <option value="author">Author A–Z</option>
-      </select>
-      <button id="addBtn" class="addbtn-main"><span class="plus">＋</span> Add</button>
+  <!-- Step 1: pick a file -->
+  <div id="dropCard" class="card" style="padding:0;border:none;background:none;box-shadow:none;">
+    <div id="drop" class="drop" role="button" tabindex="0" aria-label="Choose a book file">
+      <div class="big">📚</div>
+      <h2>Open a book</h2>
+      <p><span class="browse">Tap to browse</span> or drop a file here</p>
+      <p class="formats">EPUB · PDF · MOBI / AZW</p>
     </div>
-
-    <p id="libCount" class="libcount hidden"></p>
-    <div id="shelf" class="shelf"></div>
-
-    <!-- Empty state -->
-    <div id="emptyState">
-      <div id="drop" class="drop" role="button" tabindex="0" aria-label="Add EPUB books">
-        <div class="big">📖</div>
-        <h2>Add your books</h2>
-        <p><span class="browse">Tap to choose EPUB files</span> or drop them here</p>
-      </div>
-      <p class="privacy">Your books stay in this browser on your device. Nothing is uploaded.</p>
-    </div>
+    <input id="fileInput" type="file"
+      accept=".epub,.pdf,.mobi,.azw,.azw3,.prc,application/epub+zip,application/pdf,application/x-mobipocket-ebook"
+      class="hidden">
   </div>
 
-  <!-- =================== EDITOR VIEW =================== -->
-  <div id="editorView" class="hidden">
+  <!-- Step 2: the editor -->
+  <div id="editor" class="hidden">
     <div class="card">
       <div class="filebar">
-        <span class="name" id="fileName">book.epub</span>
-        <span class="pill" id="epubVer">EPUB</span>
+        <span class="name" id="fileName">book</span>
+        <span class="pill" id="fmtPill">EPUB</span>
+        <button class="iconbtn" id="closeBtn" title="Open a different file" style="margin-left:auto;width:auto;padding:0 12px;font-size:13px;">Change file</button>
       </div>
       <div id="repairBanner" class="repair hidden">
         <span class="ic">🛠️</span>
-        <span>This file was incomplete and has been <strong>automatically repaired</strong>. Saving stores a clean, working copy.</span>
+        <span>This file was incomplete and has been <strong>automatically repaired</strong>. Tap <strong>Save</strong> to download a clean, working copy.</span>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="coverCard">
       <div class="cover-wrap">
-        <div class="cover-frame" id="coverFrame"><span class="none">No cover</span></div>
+        <div class="cover-frame" id="coverFrame">
+          <span class="none">No cover</span>
+        </div>
         <div class="cover-actions">
           <div class="section-title" style="margin-top:2px;">Cover</div>
-          <p>Replace the cover image (JPEG or PNG).</p>
-          <button class="addrow" id="coverBtn" style="width:auto;">Choose image…</button>
+          <p>Replace the cover image (JPEG or PNG). Keeps the same file inside the book.</p>
+          <button class="addbtn" id="coverBtn" style="width:auto;">Choose image…</button>
           <input id="coverInput" type="file" accept="image/jpeg,image/png" class="hidden">
         </div>
       </div>
@@ -313,66 +258,81 @@
 
     <div class="card">
       <div class="section-title">Details</div>
+
       <label class="field">
         <span class="lbl">Title</span>
         <input type="text" id="f_title" placeholder="Book title">
       </label>
+
       <div class="multi" id="m_creator">
-        <span class="lbl">Author(s)</span>
+        <span class="lbl" id="creatorLabel">Author(s)</span>
         <div class="rows"></div>
-        <button class="addrow" data-add="creator">+ Add author</button>
+        <button class="addbtn" data-add="creator">+ Add author</button>
       </div>
+
       <label class="field" style="margin-top:15px;">
-        <span class="lbl">Series <span class="hint">name &amp; number</span></span>
-        <div style="display:flex; gap:10px;">
-          <input type="text" id="f_series" placeholder="Series name" style="flex:2;">
-          <input type="text" id="f_series_index" placeholder="#" style="flex:0 0 72px;" inputmode="decimal">
-        </div>
-      </label>
-      <label class="field">
-        <span class="lbl">Description</span>
+        <span class="lbl" id="descLabel">Description</span>
         <textarea id="f_description" placeholder="Synopsis or notes"></textarea>
       </label>
+
       <div class="multi" id="m_subject">
-        <span class="lbl">Subjects / Tags</span>
+        <span class="lbl" id="subjLabel">Subjects / Tags</span>
         <div class="rows"></div>
-        <button class="addrow" data-add="subject">+ Add subject</button>
+        <button class="addbtn" data-add="subject">+ Add subject</button>
       </div>
     </div>
 
-    <div class="card">
+    <div class="card" id="pubCard">
       <div class="section-title">Publication</div>
       <div class="grid2">
-        <label class="field"><span class="lbl">Publisher</span><input type="text" id="f_publisher" placeholder="Publisher"></label>
-        <label class="field"><span class="lbl">Publication date</span><input type="text" id="f_date" placeholder="YYYY or YYYY-MM-DD"></label>
-        <label class="field"><span class="lbl">Language <span class="hint">BCP-47</span></span><input type="text" id="f_language" placeholder="en, en-US, fr…"></label>
-        <label class="field"><span class="lbl">Rights</span><input type="text" id="f_rights" placeholder="Copyright / license"></label>
+        <label class="field">
+          <span class="lbl">Publisher</span>
+          <input type="text" id="f_publisher" placeholder="Publisher">
+        </label>
+        <label class="field">
+          <span class="lbl">Publication date</span>
+          <input type="text" id="f_date" placeholder="YYYY or YYYY-MM-DD">
+        </label>
+        <label class="field">
+          <span class="lbl">Language <span class="hint">BCP-47</span></span>
+          <input type="text" id="f_language" placeholder="en, en-US, fr…">
+        </label>
+        <label class="field" id="rightsField">
+          <span class="lbl">Rights</span>
+          <input type="text" id="f_rights" placeholder="Copyright / license">
+        </label>
       </div>
+
       <div class="multi" id="m_identifier">
-        <span class="lbl">Identifiers <span class="hint">ISBN, UUID…</span></span>
+        <span class="lbl" id="idLabel">Identifiers <span class="hint">ISBN, UUID…</span></span>
         <div class="rows"></div>
-        <button class="addrow" data-add="identifier">+ Add identifier</button>
+        <button class="addbtn" data-add="identifier">+ Add identifier</button>
       </div>
+    </div>
+
+    <div id="pdfNote" class="note hidden">
+      PDF metadata is stored in the document info. Title, author, subject and keywords are edited here.
+    </div>
+    <div id="mobiNote" class="note hidden">
+      Editing the MOBI/AZW book record. Combined MOBI+KF8 files may keep a second copy of some fields that this tool doesn't change.
     </div>
 
     <footer class="credit">All processing happens locally in your browser.</footer>
   </div>
 </div>
 
-<!-- Sticky save bar (editor only) -->
+<!-- Sticky save bar -->
 <div id="actionbar" class="actionbar hidden">
   <div class="inner">
     <button class="btn ghost" id="resetBtn" title="Revert to original values">Reset</button>
-    <button class="btn ghost" id="downloadBtn" title="Download this book">Download</button>
-    <button class="btn primary" id="saveBtn">Save to Library</button>
+    <button class="btn primary" id="saveBtn">Save</button>
   </div>
 </div>
 
-<input id="fileInput" type="file" accept=".epub,application/epub+zip" multiple class="hidden">
 <div id="toast" class="toast"></div>
-<div id="overlay" class="overlay hidden"><div class="box"><div class="spin"></div><span id="overlayMsg">Working…</span></div></div>
 
 <script src="jszip.min.js"></script>
+<script src="pdf-lib.min.js"></script>
 <script>
 (() => {
   "use strict";
@@ -380,69 +340,140 @@
   const OPF_NS = "http://www.idpf.org/2007/opf";
   const CONTAINER = "META-INF/container.xml";
   const SIG = { LFH: 0x04034b50, CDH: 0x02014b50, EOCD: 0x06054b50, DD: 0x08074b50 };
+
+  // ---- state ----
+  let fmt = null;               // 'epub' | 'pdf' | 'mobi'
+  let originalName = "book";
+  let snapshot = null;
+  let wasRepaired = false;
+  // EPUB
+  let zip = null, opfPath = null, opfDoc = null, metadataEl = null, coverPath = null, coverReplacement = null;
+  // PDF
+  let pdfDocRef = null;
+  // MOBI
+  let mobiState = null;
+
   const $ = (id) => document.getElementById(id);
+  const drop = $("drop"), fileInput = $("fileInput"), editor = $("editor"),
+        actionbar = $("actionbar"), toastEl = $("toast");
 
-  // ======================================================================
-  //  IndexedDB library store
-  // ======================================================================
-  const DB_NAME = "epubLibrary", STORE = "books";
-  let _db = null;
-  function openDB() {
-    return new Promise((res, rej) => {
-      const r = indexedDB.open(DB_NAME, 1);
-      r.onupgradeneeded = (e) => {
-        const d = e.target.result;
-        if (!d.objectStoreNames.contains(STORE)) d.createObjectStore(STORE, { keyPath: "id" });
-      };
-      r.onsuccess = (e) => res(e.target.result);
-      r.onerror = () => rej(r.error);
-    });
-  }
-  async function db() { return _db || (_db = await openDB()); }
-  function reqP(req) { return new Promise((res, rej) => { req.onsuccess = () => res(req.result); req.onerror = () => rej(req.error); }); }
-  async function dbGetAll() { const d = await db(); return reqP(d.transaction(STORE).objectStore(STORE).getAll()); }
-  async function dbGet(id) { const d = await db(); return reqP(d.transaction(STORE).objectStore(STORE).get(id)); }
-  function dbWrite(op) {
-    return db().then((d) => new Promise((res, rej) => {
-      const t = d.transaction(STORE, "readwrite");
-      op(t.objectStore(STORE));
-      t.oncomplete = res; t.onerror = () => rej(t.error); t.onabort = () => rej(t.error);
-    }));
-  }
-  const dbPut = (rec) => dbWrite((s) => s.put(rec));
-  const dbDel = (id) => dbWrite((s) => s.delete(id));
-
-  const uuid = () => (crypto.randomUUID ? crypto.randomUUID()
-    : "xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx".replace(/[xy]/g, (c) => {
-        const r = Math.random() * 16 | 0; return (c === "x" ? r : (r & 0x3 | 0x8)).toString(16); }));
-
-  // ======================================================================
-  //  UI helpers
-  // ======================================================================
-  const toastEl = $("toast");
   function toast(msg, isErr = false) {
-    toastEl.textContent = msg; toastEl.classList.toggle("err", isErr); toastEl.classList.add("show");
-    clearTimeout(toast._t); toast._t = setTimeout(() => toastEl.classList.remove("show"), isErr ? 8000 : 2600);
+    toastEl.textContent = msg;
+    toastEl.classList.toggle("err", isErr);
+    toastEl.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(() => toastEl.classList.remove("show"), isErr ? 8000 : 2600);
   }
   toastEl.addEventListener("click", () => toastEl.classList.remove("show"));
-  function showOverlay(msg) { $("overlayMsg").textContent = msg || "Working…"; $("overlay").classList.remove("hidden"); }
-  function hideOverlay() { $("overlay").classList.add("hidden"); }
 
-  function showView(which) {
-    const lib = which === "library";
-    $("libraryView").classList.toggle("hidden", !lib);
-    $("editorView").classList.toggle("hidden", lib);
-    $("actionbar").classList.toggle("hidden", lib);
-    $("backBtn").classList.toggle("hidden", lib);
-    $("headText").querySelector("h1").textContent = lib ? "My EPUB Library" : "Edit book";
-    $("headText").querySelector("p").textContent = lib
-      ? "Manage & edit your books — all on your device."
-      : "Changes are saved back into your library.";
+  // ---- file picking ----
+  drop.addEventListener("click", () => fileInput.click());
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
+  fileInput.addEventListener("change", (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+  ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
+  ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
+  drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
+  $("closeBtn").addEventListener("click", resetToStart);
+
+  function resetToStart() {
+    fmt = null;
+    zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = null;
+    pdfDocRef = null; mobiState = null;
+    snapshot = null; wasRepaired = false;
+    editor.classList.add("hidden");
+    actionbar.classList.add("hidden");
+    $("repairBanner").classList.add("hidden");
+    $("dropCard").classList.remove("hidden");
+    fileInput.value = "";
     window.scrollTo(0, 0);
   }
 
+  const setPill = (t) => { $("fmtPill").textContent = t; };
+
+  // ---- format detection ----
+  function detectFormat(name, buf) {
+    const has = (o, s) => { if (o + s.length > buf.length) return false; for (let i = 0; i < s.length; i++) if (buf[o + i] !== s.charCodeAt(i)) return false; return true; };
+    if (has(0, "%PDF")) return "pdf";
+    if (has(60, "BOOK") && has(64, "MOBI")) return "mobi";      // Palm DB with MOBI content
+    if (buf.length >= 2 && buf[0] === 0x50 && buf[1] === 0x4b) return "epub"; // ZIP
+    const ext = (name.match(/\.([a-z0-9]+)$/i) || [])[1];
+    const e = ext ? ext.toLowerCase() : "";
+    if (e === "pdf") return "pdf";
+    if (["mobi", "azw", "azw3", "prc"].includes(e)) return "mobi";
+    if (e === "epub") return "epub";
+    return null;
+  }
+
+  async function loadFile(file) {
+    try {
+      originalName = file.name || "book";
+      wasRepaired = false;
+      const buf = new Uint8Array(await file.arrayBuffer());
+      const f = detectFormat(originalName, buf);
+      if (!f) throw new Error("Unsupported file. Please choose an EPUB, PDF, or MOBI / AZW file.");
+      fmt = f;
+
+      if (f === "epub") await loadEpub(buf);
+      else if (f === "pdf") await loadPdf(buf);
+      else loadMobi(buf);
+
+      configureFormForFormat(f);
+      $("fileName").textContent = originalName;
+      $("dropCard").classList.add("hidden");
+      editor.classList.remove("hidden");
+      actionbar.classList.remove("hidden");
+      $("repairBanner").classList.toggle("hidden", !wasRepaired);
+      snapshot = captureForm();
+      window.scrollTo(0, 0);
+      toast(wasRepaired ? "File was incomplete — auto-repaired ✓" : "Loaded ✓");
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Could not read that file", true);
+      resetToStart();
+    }
+  }
+
+  function configureFormForFormat(f) {
+    $("coverCard").classList.toggle("hidden", f !== "epub");
+    $("pubCard").classList.toggle("hidden", f === "pdf");
+    $("rightsField").classList.toggle("hidden", f !== "epub");
+    $("pdfNote").classList.toggle("hidden", f !== "pdf");
+    $("mobiNote").classList.toggle("hidden", f !== "mobi");
+    if (f === "pdf") { $("descLabel").textContent = "Subject"; $("subjLabel").textContent = "Keywords"; }
+    else { $("descLabel").textContent = "Description"; $("subjLabel").textContent = "Subjects / Tags"; }
+  }
+
   // ======================================================================
-  //  Zip recovery (rebuild central directory from local headers, à la zip -FF)
+  //  Shared multi-value rows
+  // ======================================================================
+  function rowTemplate(kind, value) {
+    const row = document.createElement("div"); row.className = "row";
+    const input = document.createElement("input"); input.type = "text"; input.value = value || "";
+    input.placeholder = { creator: "Author name", subject: "Subject / tag", identifier: "ISBN, UUID, DOI…" }[kind] || "";
+    const rm = document.createElement("button"); rm.className = "iconbtn"; rm.type = "button"; rm.textContent = "−"; rm.title = "Remove";
+    rm.addEventListener("click", () => row.remove());
+    row.append(input, rm);
+    return row;
+  }
+  function fillMulti(kind, values) {
+    const rows = document.querySelector("#m_" + kind + " .rows");
+    rows.innerHTML = "";
+    (values || []).forEach((v) => rows.appendChild(rowTemplate(kind, v)));
+  }
+  function multiValues(kind) {
+    return Array.from(document.querySelectorAll("#m_" + kind + " .rows input")).map((i) => i.value.trim()).filter(Boolean);
+  }
+  document.querySelectorAll("[data-add]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const kind = btn.getAttribute("data-add");
+      const row = rowTemplate(kind, "");
+      document.querySelector("#m_" + kind + " .rows").appendChild(row);
+      row.querySelector("input").focus();
+    });
+  });
+
+  // ======================================================================
+  //  EPUB  (zip recovery + Dublin Core)
   // ======================================================================
   function rebuildZip(buf) {
     if (buf.length < 4) return null;
@@ -459,11 +490,9 @@
       const nameBytes = buf.slice(nameStart, nameStart + fnLen);
       const hasDD = (flag & 0x08) !== 0;
       let dataEnd, nextPos;
-      if (!hasDD && comp > 0) {
-        dataEnd = dataStart + comp; if (dataEnd > len) break; nextPos = dataEnd;
-      } else if (!hasDD && comp === 0) {
-        dataEnd = nextPos = dataStart;
-      } else {
+      if (!hasDD && comp > 0) { dataEnd = dataStart + comp; if (dataEnd > len) break; nextPos = dataEnd; }
+      else if (!hasDD && comp === 0) { dataEnd = nextPos = dataStart; }
+      else {
         let scan = dataStart, found = -1;
         while (scan + 4 <= len) { const s = u32(scan); if (s === SIG.LFH || s === SIG.CDH) { found = scan; break; } scan++; }
         if (found === -1) break;
@@ -497,76 +526,63 @@
     return out;
   }
 
-  // ======================================================================
-  //  EPUB parsing / metadata read
-  // ======================================================================
-  async function parseEpub(source) {
-    const buf = source instanceof Uint8Array ? source : new Uint8Array(await source.arrayBuffer());
-    let zip = null, repaired = false;
+  async function loadEpub(buf) {
     try { zip = await JSZip.loadAsync(buf); }
-    catch (e) {
-      let rb = null; try { rb = rebuildZip(buf); } catch (_) {}
-      if (rb) { try { zip = await JSZip.loadAsync(rb); repaired = true; } catch (_) {} }
-      if (!zip) { const err = new Error("This file is incomplete or corrupted and couldn't be repaired — too much of it is missing. Try downloading the book again."); err.corrupt = true; throw err; }
+    catch (zerr) {
+      console.warn("Primary open failed, attempting recovery:", zerr);
+      let rebuilt = null; try { rebuilt = rebuildZip(buf); } catch (e) { console.error(e); }
+      if (rebuilt) { try { zip = await JSZip.loadAsync(rebuilt); wasRepaired = true; } catch (e) { console.error(e); zip = null; } }
+      if (!zip) throw new Error("This EPUB is incomplete or corrupted and couldn't be repaired — too much of it is missing. This usually means the download was cut short; try downloading the book again.");
     }
     const cf = zip.file(CONTAINER);
     if (!cf) throw new Error("Missing META-INF/container.xml — not a valid EPUB");
     const cDoc = new DOMParser().parseFromString(await cf.async("string"), "application/xml");
-    const rootfile = cDoc.querySelector("rootfile");
-    const opfPath = rootfile && rootfile.getAttribute("full-path");
+    const rf = cDoc.querySelector("rootfile");
+    opfPath = rf && rf.getAttribute("full-path");
     if (!opfPath || !zip.file(opfPath)) throw new Error("Could not find the package (.opf) file");
-    const opfDoc = new DOMParser().parseFromString(await zip.file(opfPath).async("string"), "application/xml");
+    opfDoc = new DOMParser().parseFromString(await zip.file(opfPath).async("string"), "application/xml");
     if (opfDoc.querySelector("parsererror")) throw new Error("The package file is malformed XML");
-    const metadataEl = opfDoc.getElementsByTagName("metadata")[0] || opfDoc.getElementsByTagNameNS(OPF_NS, "metadata")[0];
+    metadataEl = opfDoc.getElementsByTagName("metadata")[0] || opfDoc.getElementsByTagNameNS(OPF_NS, "metadata")[0];
     if (!metadataEl) throw new Error("No <metadata> section found");
     const pkg = opfDoc.getElementsByTagName("package")[0];
-    const version = (pkg && pkg.getAttribute("version")) || "?";
-    return { zip, opfPath, opfDoc, metadataEl, version, repaired };
+    setPill("EPUB " + ((pkg && pkg.getAttribute("version")) || "?"));
+    populateEpub();
+    await loadCover();
   }
 
-  function dcValues(metadataEl, tag) {
+  function dcValues(tag) {
     let els = metadataEl.getElementsByTagName("dc:" + tag);
     if (!els.length) els = metadataEl.getElementsByTagNameNS(DC_NS, tag);
     return Array.from(els);
   }
-  const dcTexts = (m, tag) => dcValues(m, tag).map((e) => (e.textContent || "").trim()).filter(Boolean);
-  const dcText = (m, tag) => { const v = dcTexts(m, tag); return v.length ? v[0] : ""; };
+  const dcText = (tag) => { const els = dcValues(tag); return els.length ? (els[0].textContent || "").trim() : ""; };
 
-  // EPUB2 <meta name="calibre:series"> / EPUB3 <meta property="belongs-to-collection">
-  function readSeries(metadataEl) {
-    const metas = Array.from(metadataEl.getElementsByTagName("meta"));
-    let name = "", index = "";
-    for (const m of metas) {
-      const n = (m.getAttribute("name") || "").toLowerCase();
-      if (n === "calibre:series") name = m.getAttribute("content") || "";
-      if (n === "calibre:series_index") index = m.getAttribute("content") || "";
-    }
-    if (!name) {
-      const coll = metas.find((m) => (m.getAttribute("property") || "") === "belongs-to-collection");
-      if (coll) {
-        name = (coll.textContent || "").trim();
-        const id = coll.getAttribute("id");
-        if (id) {
-          const gi = metas.find((m) => (m.getAttribute("property") || "") === "group-position" && (m.getAttribute("refines") || "") === "#" + id);
-          if (gi) index = (gi.textContent || "").trim();
-        }
-      }
-    }
-    return { name, index };
+  function populateEpub() {
+    $("f_title").value = dcText("title");
+    $("f_description").value = dcText("description");
+    $("f_publisher").value = dcText("publisher");
+    $("f_date").value = dcText("date");
+    $("f_language").value = dcText("language");
+    $("f_rights").value = dcText("rights");
+    fillMulti("creator", dcValues("creator").map((e) => (e.textContent || "").trim()).filter(Boolean));
+    fillMulti("subject", dcValues("subject").map((e) => (e.textContent || "").trim()).filter(Boolean));
+    fillMulti("identifier", dcValues("identifier").map((e) => (e.textContent || "").trim()).filter(Boolean));
   }
 
-  // ----- cover -----
-  function opfDir(opfPath) { const i = opfPath.lastIndexOf("/"); return i === -1 ? "" : opfPath.slice(0, i); }
-  function joinPath(base, rel) {
-    if (!base) return rel;
-    const out = [];
-    for (const p of (base + "/" + rel).split("/")) {
-      if (p === "." || p === "") continue;
-      if (p === "..") out.pop(); else out.push(p);
+  async function loadCover() {
+    coverPath = findCoverPath();
+    const frame = $("coverFrame"); frame.innerHTML = "";
+    if (coverPath && zip.file(coverPath)) {
+      try {
+        const b64 = await zip.file(coverPath).async("base64");
+        const mime = /\.png$/i.test(coverPath) ? "image/png" : "image/jpeg";
+        const img = document.createElement("img"); img.src = "data:" + mime + ";base64," + b64; img.alt = "Cover";
+        frame.appendChild(img); return;
+      } catch (_) {}
     }
-    return out.join("/");
+    const none = document.createElement("span"); none.className = "none"; none.textContent = "No cover found"; frame.appendChild(none);
   }
-  function findCoverPath(opfDoc, metadataEl, opfPath) {
+  function findCoverPath() {
     const manifest = opfDoc.getElementsByTagName("manifest")[0];
     if (!manifest) return null;
     const items = Array.from(manifest.getElementsByTagName("item"));
@@ -577,239 +593,32 @@
     }
     if (!item) item = items.find((it) => /image\//.test(it.getAttribute("media-type") || "") && /cover/i.test((it.getAttribute("id") || "") + " " + (it.getAttribute("href") || "")));
     if (!item) return null;
-    return joinPath(opfDir(opfPath), decodeURIComponent(item.getAttribute("href") || ""));
+    return joinPath(opfDir(), decodeURIComponent(item.getAttribute("href") || ""));
   }
-  async function coverDataURL(zip, coverPath) {
-    if (!coverPath || !zip.file(coverPath)) return null;
-    try {
-      const b64 = await zip.file(coverPath).async("base64");
-      const mime = /\.png$/i.test(coverPath) ? "image/png" : "image/jpeg";
-      return "data:" + mime + ";base64," + b64;
-    } catch (_) { return null; }
-  }
-  // downscale a cover to a small JPEG thumbnail for the library grid
-  function makeThumb(dataURL) {
-    return new Promise((res) => {
-      const img = new Image();
-      img.onload = () => {
-        const maxW = 240, scale = Math.min(1, maxW / img.width);
-        const w = Math.round(img.width * scale), h = Math.round(img.height * scale);
-        const c = document.createElement("canvas"); c.width = w; c.height = h;
-        c.getContext("2d").drawImage(img, 0, 0, w, h);
-        try { res(c.toDataURL("image/jpeg", 0.82)); } catch (_) { res(dataURL); }
-      };
-      img.onerror = () => res(null);
-      img.src = dataURL;
-    });
-  }
-
-  async function extractCard(parsed) {
-    const { zip, opfDoc, metadataEl, opfPath } = parsed;
-    const title = dcText(metadataEl, "title") || "(untitled)";
-    const author = dcTexts(metadataEl, "creator").join(", ");
-    let coverThumb = null;
-    const cp = findCoverPath(opfDoc, metadataEl, opfPath);
-    const cd = await coverDataURL(zip, cp);
-    if (cd) coverThumb = await makeThumb(cd);
-    return { title, author, coverThumb };
-  }
-
-  // ======================================================================
-  //  Library: import, render, delete
-  // ======================================================================
-  let library = []; // in-memory mirror of the DB (without blobs for lighter rendering? we keep blobs too)
-
-  async function refreshLibrary() {
-    library = await dbGetAll();
-    renderShelf();
-  }
-
-  function currentFilterSort(list) {
-    const q = $("searchInput").value.trim().toLowerCase();
-    let out = list;
-    if (q) out = out.filter((b) => (b.title + " " + b.author).toLowerCase().includes(q));
-    const sort = $("sortSelect").value;
-    out = out.slice().sort((a, b) => {
-      if (sort === "title") return (a.title || "").localeCompare(b.title || "");
-      if (sort === "author") return (a.author || "").localeCompare(b.author || "");
-      return (b.addedAt || 0) - (a.addedAt || 0);
-    });
-    return out;
-  }
-
-  function renderShelf() {
-    const shelf = $("shelf");
-    const has = library.length > 0;
-    $("emptyState").classList.toggle("hidden", has);
-    $("libToolbar").classList.toggle("hidden", !has);
-    $("libCount").classList.toggle("hidden", !has);
-    shelf.innerHTML = "";
-    if (!has) return;
-
-    const shown = currentFilterSort(library);
-    $("libCount").textContent = shown.length === library.length
-      ? `${library.length} book${library.length === 1 ? "" : "s"}`
-      : `${shown.length} of ${library.length} books`;
-
-    for (const b of shown) {
-      const card = document.createElement("div");
-      card.className = "book"; card.tabIndex = 0; card.setAttribute("role", "button");
-      const thumb = document.createElement("div"); thumb.className = "thumb";
-      if (b.coverThumb) {
-        const img = document.createElement("img"); img.loading = "lazy"; img.src = b.coverThumb; img.alt = ""; thumb.appendChild(img);
-      } else {
-        const ph = document.createElement("div"); ph.className = "ph"; ph.textContent = b.title || "Untitled"; thumb.appendChild(ph);
-      }
-      if (b.repaired) { const badge = document.createElement("span"); badge.className = "badge"; badge.textContent = "repaired"; thumb.appendChild(badge); }
-      const del = document.createElement("button"); del.className = "del"; del.title = "Remove"; del.textContent = "🗑";
-      del.addEventListener("click", (e) => { e.stopPropagation(); removeBook(b); });
-      thumb.appendChild(del);
-      const t = document.createElement("div"); t.className = "t"; t.textContent = b.title || "Untitled";
-      const a = document.createElement("div"); a.className = "a"; a.textContent = b.author || "Unknown author";
-      card.append(thumb, t, a);
-      const open = () => openBook(b.id);
-      card.addEventListener("click", open);
-      card.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(); } });
-      shelf.appendChild(card);
-    }
-  }
-
-  async function removeBook(b) {
-    if (!confirm(`Remove “${b.title || "this book"}” from your library?\n\n(This only removes it here — any exported copy you saved is untouched.)`)) return;
-    await dbDel(b.id);
-    await refreshLibrary();
-    toast("Removed");
-  }
-
-  async function importFiles(fileList) {
-    const files = Array.from(fileList).filter((f) => /\.epub$/i.test(f.name) || f.type === "application/epub+zip");
-    if (!files.length) { toast("No EPUB files selected", true); return; }
-    showOverlay(files.length > 1 ? `Adding ${files.length} books…` : "Adding book…");
-    let ok = 0, repaired = 0; const failed = [];
-    for (const file of files) {
-      try {
-        const buf = new Uint8Array(await file.arrayBuffer());
-        const parsed = await parseEpub(buf);
-        const card = await extractCard(parsed);
-        // store a clean, valid blob (regenerate if we had to repair)
-        let blob;
-        if (parsed.repaired) {
-          if (parsed.zip.file("mimetype")) parsed.zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
-          blob = await parsed.zip.generateAsync({ type: "blob", mimeType: "application/epub+zip", compression: "DEFLATE", compressionOptions: { level: 6 } });
-          repaired++;
-        } else {
-          blob = file;
-        }
-        await dbPut({ id: uuid(), filename: file.name, addedAt: Date.now(), size: blob.size,
-          title: card.title, author: card.author, coverThumb: card.coverThumb, repaired: parsed.repaired, blob });
-        ok++;
-      } catch (e) { console.error("import failed:", file.name, e); failed.push(file.name); }
-    }
-    await refreshLibrary();
-    hideOverlay();
-    let msg = `Added ${ok} book${ok === 1 ? "" : "s"}`;
-    if (repaired) msg += ` (${repaired} repaired)`;
-    if (failed.length) msg += ` · ${failed.length} failed`;
-    toast(msg, failed.length && !ok);
-  }
-
-  // ======================================================================
-  //  Editor
-  // ======================================================================
-  let current = null; // { id, name, zip, opfPath, opfDoc, metadataEl, version, coverPath, coverReplacement, repaired, snapshot }
-
-  async function openBook(id) {
-    const rec = await dbGet(id);
-    if (!rec) { toast("Book not found", true); await refreshLibrary(); return; }
-    showOverlay("Opening…");
-    try {
-      const parsed = await parseEpub(rec.blob);
-      current = { id, name: rec.filename, ...parsed,
-        coverPath: findCoverPath(parsed.opfDoc, parsed.metadataEl, parsed.opfPath),
-        coverReplacement: null, repaired: !!rec.repaired };
-      populateForm();
-      await loadCover();
-      $("fileName").textContent = rec.filename;
-      $("epubVer").textContent = "EPUB " + parsed.version;
-      $("repairBanner").classList.toggle("hidden", !rec.repaired);
-      current.snapshot = captureForm();
-      showView("editor");
-    } catch (e) {
-      console.error(e); toast(e.message || "Could not open this book", true);
-    } finally { hideOverlay(); }
-  }
-
-  function populateForm() {
-    const m = current.metadataEl;
-    $("f_title").value = dcText(m, "title");
-    $("f_description").value = dcText(m, "description");
-    $("f_publisher").value = dcText(m, "publisher");
-    $("f_date").value = dcText(m, "date");
-    $("f_language").value = dcText(m, "language");
-    $("f_rights").value = dcText(m, "rights");
-    const s = readSeries(m); $("f_series").value = s.name; $("f_series_index").value = s.index;
-    fillMulti("creator", dcTexts(m, "creator"));
-    fillMulti("subject", dcTexts(m, "subject"));
-    fillMulti("identifier", dcTexts(m, "identifier"));
-  }
-
-  function rowTemplate(kind, value) {
-    const row = document.createElement("div"); row.className = "row";
-    const input = document.createElement("input"); input.type = "text"; input.value = value || "";
-    input.placeholder = { creator: "Author name", subject: "Subject / tag", identifier: "ISBN, UUID, DOI…" }[kind] || "";
-    const rm = document.createElement("button"); rm.className = "iconbtn"; rm.type = "button"; rm.textContent = "−"; rm.title = "Remove";
-    rm.addEventListener("click", () => row.remove());
-    row.append(input, rm);
-    return row;
-  }
-  function fillMulti(kind, values) {
-    const rows = document.querySelector("#m_" + kind + " .rows");
-    rows.innerHTML = "";
-    values.forEach((v) => rows.appendChild(rowTemplate(kind, v)));
-  }
-  function multiValues(kind) {
-    return Array.from(document.querySelectorAll("#m_" + kind + " .rows input")).map((i) => i.value.trim()).filter(Boolean);
-  }
-  document.querySelectorAll("[data-add]").forEach((btn) => {
-    btn.addEventListener("click", () => {
-      const kind = btn.getAttribute("data-add");
-      const row = rowTemplate(kind, "");
-      document.querySelector("#m_" + kind + " .rows").appendChild(row);
-      row.querySelector("input").focus();
-    });
-  });
-
-  async function loadCover() {
-    const frame = $("coverFrame"); frame.innerHTML = "";
-    const cd = await coverDataURL(current.zip, current.coverPath);
-    if (cd) { const img = document.createElement("img"); img.src = cd; img.alt = "Cover"; frame.appendChild(img); }
-    else { const none = document.createElement("span"); none.className = "none"; none.textContent = "No cover"; frame.appendChild(none); }
+  function opfDir() { const i = opfPath.lastIndexOf("/"); return i === -1 ? "" : opfPath.slice(0, i); }
+  function joinPath(base, rel) {
+    if (!base) return rel;
+    const out = [];
+    for (const p of (base + "/" + rel).split("/")) { if (p === "." || p === "") continue; if (p === "..") out.pop(); else out.push(p); }
+    return out.join("/");
   }
   $("coverBtn").addEventListener("click", () => $("coverInput").click());
   $("coverInput").addEventListener("change", async (e) => {
     const f = e.target.files[0]; if (!f) return;
-    if (!current.coverPath) { toast("This book has no cover image to replace", true); return; }
-    current.coverReplacement = { data: new Uint8Array(await f.arrayBuffer()), path: current.coverPath };
+    if (!coverPath) { toast("This book has no cover image slot to replace", true); return; }
+    coverReplacement = { data: new Uint8Array(await f.arrayBuffer()), path: coverPath };
     const frame = $("coverFrame"); frame.innerHTML = "";
     const img = document.createElement("img"); img.src = URL.createObjectURL(f); img.alt = "New cover"; frame.appendChild(img);
     toast("Cover will be replaced on save");
   });
 
-  // ----- writing back to the OPF -----
-  function appendDc(tag, value) {
-    const el = current.opfDoc.createElementNS(DC_NS, "dc:" + tag);
-    el.textContent = value;
-    current.metadataEl.appendChild(current.opfDoc.createTextNode("\n    "));
-    current.metadataEl.appendChild(el);
-    return el;
-  }
   function setSingle(tag, value) {
-    const els = dcValues(current.metadataEl, tag); value = value.trim();
+    const els = dcValues(tag); value = value.trim();
     if (value) { if (els.length) { els[0].textContent = value; for (let i = 1; i < els.length; i++) els[i].remove(); } else appendDc(tag, value); }
     else els.forEach((e) => e.remove());
   }
   function setMulti(tag, values) {
-    const els = dcValues(current.metadataEl, tag);
+    const els = dcValues(tag);
     const keptAttrs = els.map((e) => e.attributes);
     els.forEach((e) => e.remove());
     values.forEach((v, idx) => {
@@ -817,22 +626,14 @@
       if (keptAttrs[idx]) for (const a of Array.from(keptAttrs[idx])) { if (a.name === "id" && tag !== "identifier") continue; try { el.setAttribute(a.name, a.value); } catch (_) {} }
     });
   }
-  function setSeries(name, index) {
-    // Maintain calibre-style meta (widely understood, incl. by Kobo tools)
-    const md = current.metadataEl, metas = Array.from(md.getElementsByTagName("meta"));
-    const findMeta = (n) => metas.find((m) => (m.getAttribute("name") || "").toLowerCase() === n);
-    const upsert = (n, val) => {
-      let el = findMeta(n);
-      val = (val || "").trim();
-      if (val) {
-        if (!el) { el = current.opfDoc.createElementNS(OPF_NS, "meta"); md.appendChild(current.opfDoc.createTextNode("\n    ")); md.appendChild(el); el.setAttribute("name", n); }
-        el.setAttribute("content", val);
-      } else if (el) el.remove();
-    };
-    upsert("calibre:series", name);
-    upsert("calibre:series_index", name ? index : "");
+  function appendDc(tag, value) {
+    const el = opfDoc.createElementNS(DC_NS, "dc:" + tag);
+    el.textContent = value;
+    metadataEl.appendChild(opfDoc.createTextNode("\n    "));
+    metadataEl.appendChild(el);
+    return el;
   }
-  function applyForm() {
+  function applyEpubForm() {
     setSingle("title", $("f_title").value);
     setSingle("description", $("f_description").value);
     setSingle("publisher", $("f_publisher").value);
@@ -842,33 +643,229 @@
     setMulti("creator", multiValues("creator"));
     setMulti("subject", multiValues("subject"));
     const ids = multiValues("identifier"); if (ids.length) setMulti("identifier", ids);
-    setSeries($("f_series").value, $("f_series_index").value);
+  }
+  async function buildEpubBlob() {
+    applyEpubForm();
+    zip.file(opfPath, new XMLSerializer().serializeToString(opfDoc));
+    if (coverReplacement && coverReplacement.path) zip.file(coverReplacement.path, coverReplacement.data);
+    if (zip.file("mimetype")) zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
+    return zip.generateAsync({ type: "blob", mimeType: "application/epub+zip", compression: "DEFLATE", compressionOptions: { level: 6 } });
   }
 
+  // ======================================================================
+  //  PDF  (document info dictionary via pdf-lib)
+  // ======================================================================
+  async function loadPdf(buf) {
+    let d;
+    try { d = await PDFLib.PDFDocument.load(buf); }
+    catch (e) {
+      if (/encrypt/i.test(e && e.message || "")) throw new Error("This PDF is encrypted / password-protected, so its metadata can't be edited.");
+      throw new Error("This PDF couldn't be opened (it may be damaged).");
+    }
+    pdfDocRef = d;
+    setPill("PDF");
+    $("f_title").value = d.getTitle() || "";
+    const author = d.getAuthor() || "";
+    fillMulti("creator", author ? [author] : []);
+    $("f_description").value = d.getSubject() || "";
+    const kw = d.getKeywords() || "";
+    fillMulti("subject", kw ? kw.split(/[;,]/).map((s) => s.trim()).filter(Boolean) : []);
+  }
+  async function buildPdfBlob() {
+    const d = pdfDocRef;
+    d.setTitle($("f_title").value || "");
+    d.setAuthor(multiValues("creator").join(", "));
+    d.setSubject($("f_description").value || "");
+    const kws = multiValues("subject");
+    // Store comma-joined in a single entry so tags survive a save→reopen round-trip
+    // (pdf-lib space-joins a multi-element array, which we couldn't split back).
+    d.setKeywords(kws.length ? [kws.join(", ")] : []);
+    d.setModificationDate(new Date());
+    const bytes = await d.save({ updateMetadata: false });
+    return new Blob([bytes], { type: "application/pdf" });
+  }
+
+  // ======================================================================
+  //  MOBI / AZW  (Palm database + EXTH records)
+  // ======================================================================
+  function mobiDecoder(enc) { try { return new TextDecoder(enc === 65001 ? "utf-8" : "windows-1252"); } catch (_) { return new TextDecoder("utf-8"); } }
+  const CP1252 = { 0x20AC:0x80,0x201A:0x82,0x0192:0x83,0x201E:0x84,0x2026:0x85,0x2020:0x86,0x2021:0x87,0x02C6:0x88,0x2030:0x89,0x0160:0x8A,0x2039:0x8B,0x0152:0x8C,0x017D:0x8E,0x2018:0x91,0x2019:0x92,0x201C:0x93,0x201D:0x94,0x2022:0x95,0x2013:0x96,0x2014:0x97,0x02DC:0x98,0x2122:0x99,0x0161:0x9A,0x203A:0x9B,0x0153:0x9C,0x017E:0x9E,0x0178:0x9F };
+  function mobiEncode(str, enc) {
+    if (enc === 65001) return new TextEncoder().encode(str);
+    const out = [];
+    for (const ch of str) { const c = ch.codePointAt(0); if (c <= 0x7F || (c >= 0xA0 && c <= 0xFF)) out.push(c); else if (CP1252[c] != null) out.push(CP1252[c]); else out.push(0x3F); }
+    return new Uint8Array(out);
+  }
+
+  function mobiParse(buf) {
+    if (buf.length < 78) throw new Error("Not a valid MOBI file.");
+    const dv = new DataView(buf.buffer, buf.byteOffset, buf.byteLength);
+    const bu16 = (o) => dv.getUint16(o, false), bu32 = (o) => dv.getUint32(o, false);
+    const asc = (o, n) => { let s = ""; for (let i = 0; i < n; i++) s += String.fromCharCode(buf[o + i]); return s; };
+    if (asc(60, 4) !== "BOOK" || asc(64, 4) !== "MOBI") throw new Error("This isn't a MOBI / AZW file this tool can edit.");
+    const numRecords = bu16(76);
+    if (numRecords < 1) throw new Error("This MOBI has no records.");
+    const recOffsets = []; for (let i = 0; i < numRecords; i++) recOffsets.push(bu32(78 + i * 8));
+    const rec0 = recOffsets[0], rec1 = numRecords > 1 ? recOffsets[1] : buf.length;
+    if (rec0 + 16 > buf.length) throw new Error("This MOBI's first record is truncated.");
+    if (bu16(rec0 + 12) !== 0) throw new Error("This MOBI is DRM-protected, so its metadata can't be edited. (Only DRM-free files work.)");
+    const mobiStart = rec0 + 16;
+    if (asc(mobiStart, 4) !== "MOBI") throw new Error("Unsupported MOBI variant (missing MOBI header).");
+    const mobiHeaderLen = bu32(mobiStart + 4);
+    if (mobiHeaderLen < 0x78 || mobiStart + mobiHeaderLen > buf.length) throw new Error("Unsupported or damaged MOBI header.");
+    const textEncoding = bu32(mobiStart + 28);
+    const fullNameOffset = bu32(mobiStart + 0x54);
+    const fullNameLength = bu32(mobiStart + 0x58);
+    const exthFlags = bu32(mobiStart + 0x70);
+    const dec = mobiDecoder(textEncoding);
+    const exthRecords = [];
+    if (exthFlags & 0x40) {
+      const es = mobiStart + mobiHeaderLen;
+      if (asc(es, 4) === "EXTH") {
+        const count = bu32(es + 8); let p = es + 12;
+        for (let i = 0; i < count && p + 8 <= buf.length; i++) {
+          const t = bu32(p), l = bu32(p + 4);
+          if (l < 8 || p + l > buf.length) break;
+          exthRecords.push({ type: t, data: buf.slice(p + 8, p + l) });
+          p += l;
+        }
+      }
+    }
+    let fullName = "";
+    if (fullNameLength > 0 && rec0 + fullNameOffset + fullNameLength <= buf.length)
+      fullName = dec.decode(buf.slice(rec0 + fullNameOffset, rec0 + fullNameOffset + fullNameLength));
+    const getAll = (t) => exthRecords.filter((r) => r.type === t).map((r) => dec.decode(r.data));
+    const g1 = (t) => { const a = getAll(t); return a.length ? a[0] : ""; };
+    const meta = { title: g1(503) || fullName, authors: getAll(100), publisher: g1(101), description: g1(103), subjects: getAll(105), date: g1(106), language: g1(524), isbn: g1(104) };
+    return { buf, numRecords, recOffsets, rec0, rec1, mobiStart, mobiHeaderLen, textEncoding, exthRecords, meta };
+  }
+
+  function loadMobi(buf) {
+    mobiState = mobiParse(buf);
+    const m = mobiState.meta;
+    $("f_title").value = m.title || "";
+    fillMulti("creator", m.authors);
+    $("f_publisher").value = m.publisher || "";
+    $("f_description").value = m.description || "";
+    fillMulti("subject", m.subjects);
+    $("f_date").value = m.date || "";
+    $("f_language").value = m.language || "";
+    fillMulti("identifier", m.isbn ? [m.isbn] : []);
+    const ext = (originalName.match(/\.(azw3|azw|mobi|prc)$/i) || [])[1];
+    setPill(ext ? ext.toUpperCase() : "MOBI");
+  }
+
+  function buildMobiBytes() {
+    const m = mobiState, enc = m.textEncoding, E = (s) => mobiEncode(s, enc);
+    const vals = {
+      title: $("f_title").value.trim(),
+      authors: multiValues("creator"),
+      publisher: $("f_publisher").value.trim(),
+      description: $("f_description").value.trim(),
+      subjects: multiValues("subject"),
+      date: $("f_date").value.trim(),
+      language: $("f_language").value.trim(),
+      isbn: (multiValues("identifier")[0] || "").trim(),
+    };
+    const MANAGED = new Set([100, 101, 103, 104, 105, 106, 503, 524]);
+    const recs = m.exthRecords.filter((r) => !MANAGED.has(r.type));
+    if (vals.title) recs.push({ type: 503, data: E(vals.title) });
+    vals.authors.forEach((a) => recs.push({ type: 100, data: E(a) }));
+    if (vals.publisher) recs.push({ type: 101, data: E(vals.publisher) });
+    if (vals.description) recs.push({ type: 103, data: E(vals.description) });
+    if (vals.isbn) recs.push({ type: 104, data: E(vals.isbn) });
+    vals.subjects.forEach((s) => recs.push({ type: 105, data: E(s) }));
+    if (vals.date) recs.push({ type: 106, data: E(vals.date) });
+    if (vals.language) recs.push({ type: 524, data: E(vals.language) });
+
+    // Serialize EXTH header (padded to a multiple of 4)
+    let body = 0; for (const r of recs) body += 8 + r.data.length;
+    const total = 12 + body, padE = (4 - (total % 4)) % 4, exthLen = total + padE;
+    const exth = new Uint8Array(exthLen), edv = new DataView(exth.buffer);
+    exth[0] = 0x45; exth[1] = 0x58; exth[2] = 0x54; exth[3] = 0x48; // "EXTH"
+    edv.setUint32(4, exthLen, false); edv.setUint32(8, recs.length, false);
+    let p = 12;
+    for (const r of recs) { edv.setUint32(p, r.type, false); edv.setUint32(p + 4, 8 + r.data.length, false); exth.set(r.data, p + 8); p += 8 + r.data.length; }
+
+    const nameBytes = E(vals.title || m.meta.title || "Untitled");
+
+    // Reassemble record 0: PalmDOC header + MOBI header + EXTH + full name (+ pad)
+    const palm = m.buf.slice(m.rec0, m.rec0 + 16);
+    const mobiHeader = m.buf.slice(m.mobiStart, m.mobiStart + m.mobiHeaderLen);
+    const mdv = new DataView(mobiHeader.buffer, mobiHeader.byteOffset, mobiHeader.byteLength);
+    const newNameOff = 16 + m.mobiHeaderLen + exth.length;
+    mdv.setUint32(0x54, newNameOff, false);
+    mdv.setUint32(0x58, nameBytes.length, false);
+    mdv.setUint32(0x70, mdv.getUint32(0x70, false) | 0x40, false);
+    const bodyLen = 16 + m.mobiHeaderLen + exth.length + nameBytes.length;
+    const padN = (4 - (bodyLen % 4)) % 4;
+    const rec0 = new Uint8Array(bodyLen + padN);
+    rec0.set(palm, 0);
+    rec0.set(mobiHeader, 16);
+    rec0.set(exth, 16 + m.mobiHeaderLen);
+    rec0.set(nameBytes, newNameOff);
+
+    // Shift the offsets of every later record by the size change of record 0
+    const oldRec0Off = m.recOffsets[0], oldRec1Off = m.rec1;
+    const delta = rec0.length - (oldRec1Off - oldRec0Off);
+    const head = m.buf.slice(0, oldRec0Off);
+    const hdv = new DataView(head.buffer, head.byteOffset, head.byteLength);
+    for (let i = 1; i < m.numRecords; i++) hdv.setUint32(78 + i * 8, hdv.getUint32(78 + i * 8, false) + delta, false);
+    // Update Palm database name (bytes 0..31) to the title
+    const pdbName = E(vals.title || "Untitled");
+    for (let i = 0; i < 32; i++) head[i] = 0;
+    head.set(pdbName.slice(0, 31), 0);
+
+    const tail = m.buf.slice(oldRec1Off);
+    const out = new Uint8Array(head.length + rec0.length + tail.length);
+    out.set(head, 0); out.set(rec0, head.length); out.set(tail, head.length + rec0.length);
+    return out;
+  }
+  function buildMobiBlob() { return new Blob([buildMobiBytes()], { type: "application/x-mobipocket-ebook" }); }
+
+  // ======================================================================
+  //  Capture / reset / save
+  // ======================================================================
   function captureForm() {
     return JSON.stringify({
       title: $("f_title").value, description: $("f_description").value, publisher: $("f_publisher").value,
       date: $("f_date").value, language: $("f_language").value, rights: $("f_rights").value,
-      series: $("f_series").value, series_index: $("f_series_index").value,
       creator: multiValues("creator"), subject: multiValues("subject"), identifier: multiValues("identifier"),
     });
   }
   $("resetBtn").addEventListener("click", () => {
-    if (!current || !current.snapshot) return;
-    const s = JSON.parse(current.snapshot);
+    if (!snapshot) return;
+    const s = JSON.parse(snapshot);
     $("f_title").value = s.title; $("f_description").value = s.description; $("f_publisher").value = s.publisher;
     $("f_date").value = s.date; $("f_language").value = s.language; $("f_rights").value = s.rights;
-    $("f_series").value = s.series; $("f_series_index").value = s.series_index;
     fillMulti("creator", s.creator); fillMulti("subject", s.subject); fillMulti("identifier", s.identifier);
-    current.coverReplacement = null; loadCover(); toast("Reverted to last saved");
+    if (fmt === "epub") { coverReplacement = null; loadCover(); }
+    toast("Reverted to original");
   });
 
-  async function currentToBlob() {
-    applyForm();
-    current.zip.file(current.opfPath, new XMLSerializer().serializeToString(current.opfDoc));
-    if (current.coverReplacement) current.zip.file(current.coverReplacement.path, current.coverReplacement.data);
-    if (current.zip.file("mimetype")) current.zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
-    return current.zip.generateAsync({ type: "blob", mimeType: "application/epub+zip", compression: "DEFLATE", compressionOptions: { level: 6 } });
+  function outName() {
+    const dot = originalName.lastIndexOf(".");
+    const base = dot > 0 ? originalName.slice(0, dot) : originalName;
+    const ext = dot > 0 ? originalName.slice(dot) : "." + fmt;
+    return base + " (edited)" + ext;
+  }
+
+  $("saveBtn").addEventListener("click", save);
+  async function save() {
+    if (!fmt) return;
+    const btn = $("saveBtn"); btn.disabled = true; const label = btn.textContent; btn.textContent = "Saving…";
+    try {
+      let blob;
+      if (fmt === "epub") blob = await buildEpubBlob();
+      else if (fmt === "pdf") blob = await buildPdfBlob();
+      else blob = buildMobiBlob();
+      downloadBlob(blob, outName());
+      snapshot = captureForm();
+      toast("Saved ✓ — check your downloads");
+    } catch (err) {
+      console.error(err);
+      toast(err.message || "Something went wrong while saving", true);
+    } finally { btn.disabled = false; btn.textContent = label; }
   }
 
   function downloadBlob(blob, name) {
@@ -877,63 +874,13 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  $("downloadBtn").addEventListener("click", async () => {
-    if (!current) return;
-    const btn = $("downloadBtn"); btn.disabled = true;
-    try { downloadBlob(await currentToBlob(), current.name.replace(/\.epub$/i, "") + ".epub"); toast("Downloaded — check your files"); }
-    catch (e) { console.error(e); toast("Could not export this book", true); }
-    finally { btn.disabled = false; }
-  });
-
-  $("saveBtn").addEventListener("click", async () => {
-    if (!current) return;
-    const btn = $("saveBtn"); btn.disabled = true; const label = btn.textContent; btn.textContent = "Saving…";
-    try {
-      const blob = await currentToBlob();
-      // re-derive display metadata + cover from the saved result
-      const parsed = await parseEpub(blob);
-      const card = await extractCard(parsed);
-      const rec = await dbGet(current.id) || { id: current.id, addedAt: Date.now(), filename: current.name };
-      Object.assign(rec, { blob, size: blob.size, title: card.title, author: card.author, coverThumb: card.coverThumb, repaired: false });
-      await dbPut(rec);
-      current.repaired = false; current.coverReplacement = null; current.snapshot = captureForm();
-      $("repairBanner").classList.add("hidden");
-      await refreshLibrary();
-      toast("Saved to library ✓");
-      showView("library");
-    } catch (e) { console.error(e); toast(e.message || "Something went wrong while saving", true); }
-    finally { btn.disabled = false; btn.textContent = label; }
-  });
-
-  // ======================================================================
-  //  Wire up navigation & inputs
-  // ======================================================================
-  $("backBtn").addEventListener("click", () => { current = null; showView("library"); });
-  $("addBtn").addEventListener("click", () => $("fileInput").click());
-  $("drop").addEventListener("click", () => $("fileInput").click());
-  $("drop").addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $("fileInput").click(); } });
-  $("fileInput").addEventListener("change", (e) => { if (e.target.files.length) importFiles(e.target.files); e.target.value = ""; });
-  $("searchInput").addEventListener("input", renderShelf);
-  $("sortSelect").addEventListener("change", renderShelf);
-
-  // Drag & drop anywhere in the library view
-  const libView = $("libraryView");
-  ["dragenter", "dragover"].forEach((ev) => libView.addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.add("drag"); }));
-  ["dragleave", "drop"].forEach((ev) => libView.addEventListener(ev, (e) => { e.preventDefault(); $("drop").classList.remove("drag"); }));
-  libView.addEventListener("drop", (e) => { if (e.dataTransfer.files.length) importFiles(e.dataTransfer.files); });
-
-  // ======================================================================
-  //  Boot
-  // ======================================================================
-  (async () => {
-    try { if (navigator.storage && navigator.storage.persist) await navigator.storage.persist(); } catch (_) {}
-    try { await refreshLibrary(); }
-    catch (e) { console.error(e); toast("Could not open your library storage", true); }
-    showView("library");
-  })();
-
-  // expose a tiny hook for automated testing (no effect in normal use)
-  window.__epub = { importFiles, openBook, currentToBlob, refreshLibrary, get library() { return library; } };
+  // small hook for automated testing (harmless in normal use)
+  window.__ed = {
+    loadFile,
+    loadBuffer: (buf, name) => loadFile(new File([buf], name)),
+    buildBlob: async () => fmt === "epub" ? buildEpubBlob() : fmt === "pdf" ? buildPdfBlob() : buildMobiBlob(),
+    get fmt() { return fmt; },
+  };
 })();
 </script>
 </body>
