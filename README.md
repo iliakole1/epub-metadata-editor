@@ -23,7 +23,10 @@ back to you. It works offline once loaded.
 - 🛠️ **Auto-repairs truncated/corrupted EPUBs** (e.g. from an interrupted download)
   by rebuilding the archive index in-browser
 - 🖼️ Preview and replace the EPUB cover image (JPEG/PNG)
-- 💾 Save a new `(edited)` copy — the original file is left untouched
+- 💾 **Saves over the original file** where the browser supports it
+  (Chrome / Edge desktop, Android Chrome); otherwise downloads a copy named
+  `Title - Author.ext`
+- ⏭️ **Next book** button to open another file and keep editing without leaving the page
 - 📱 "Add to Home Screen" support (PWA)
 - 🔒 100% client-side — no server, no tracking, no uploads
 
@@ -33,7 +36,10 @@ Open the hosted page (see the repo's GitHub Pages URL), then:
 
 1. Tap **Open a book** and pick an `.epub`, `.pdf`, or `.mobi` / `.azw` file.
 2. Edit any of the fields.
-3. Tap **Save** to download the edited copy.
+3. Tap **Save**. On Chrome/Edge (desktop) and Android Chrome it writes back over
+   the same file (you'll get a one-time permission prompt); on other browsers it
+   downloads a copy named `Title - Author.ext`.
+4. Tap **Next book** to open another file and keep going.
 
 To run it locally instead, open `index.html` in a browser, or serve the folder:
 

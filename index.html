@@ -234,7 +234,7 @@
       <div class="filebar">
         <span class="name" id="fileName">book</span>
         <span class="pill" id="fmtPill">EPUB</span>
-        <button class="iconbtn" id="closeBtn" title="Open a different file" style="margin-left:auto;width:auto;padding:0 12px;font-size:13px;">Change file</button>
+        <button class="iconbtn" id="nextBtn" title="Open another book" style="margin-left:auto;width:auto;padding:0 12px;font-size:13px;">Next book ›</button>
       </div>
       <div id="repairBanner" class="repair hidden">
         <span class="ic">🛠️</span>
@@ -352,6 +352,8 @@
   let pdfDocRef = null;
   // MOBI
   let mobiState = null;
+  // Writable handle to the opened file (File System Access API), when available
+  let fileHandle = null;
 
   const $ = (id) => document.getElementById(id);
   const drop = $("drop"), fileInput = $("fileInput"), editor = $("editor"),
@@ -367,18 +369,47 @@
   toastEl.addEventListener("click", () => toastEl.classList.remove("show"));
 
   // ---- file picking ----
-  drop.addEventListener("click", () => fileInput.click());
-  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); fileInput.click(); } });
-  fileInput.addEventListener("change", (e) => { if (e.target.files[0]) loadFile(e.target.files[0]); });
+  const PICK_TYPES = [{
+    description: "Ebooks (EPUB, PDF, MOBI)",
+    accept: {
+      "application/epub+zip": [".epub"],
+      "application/pdf": [".pdf"],
+      "application/x-mobipocket-ebook": [".mobi", ".azw", ".azw3", ".prc"],
+    },
+  }];
+  // Open a file. Where the File System Access API exists we keep a writable
+  // handle so "Save" can overwrite the original; otherwise fall back to <input>.
+  async function pickFile() {
+    if (window.showOpenFilePicker) {
+      let handle;
+      try { [handle] = await window.showOpenFilePicker({ multiple: false, excludeAcceptAllOption: false, types: PICK_TYPES }); }
+      catch (e) { return; } // user cancelled — keep the current book
+      fileHandle = handle;
+      try { await loadFile(await handle.getFile()); } catch (_) {}
+    } else {
+      fileHandle = null;
+      fileInput.click();
+    }
+  }
+  drop.addEventListener("click", pickFile);
+  drop.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); pickFile(); } });
+  fileInput.addEventListener("change", (e) => { if (e.target.files[0]) { fileHandle = null; loadFile(e.target.files[0]); } });
   ["dragenter", "dragover"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add("drag"); }));
   ["dragleave", "drop"].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove("drag"); }));
-  drop.addEventListener("drop", (e) => { const f = e.dataTransfer.files[0]; if (f) loadFile(f); });
-  $("closeBtn").addEventListener("click", resetToStart);
+  drop.addEventListener("drop", async (e) => {
+    e.preventDefault(); drop.classList.remove("drag");
+    const item = e.dataTransfer.items && e.dataTransfer.items[0];
+    if (item && item.getAsFileSystemHandle) {
+      try { const h = await item.getAsFileSystemHandle(); if (h && h.kind === "file") { fileHandle = h; return loadFile(await h.getFile()); } } catch (_) {}
+    }
+    const f = e.dataTransfer.files[0]; if (f) { fileHandle = null; loadFile(f); }
+  });
+  $("nextBtn").addEventListener("click", pickFile);
 
   function resetToStart() {
     fmt = null;
     zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = null;
-    pdfDocRef = null; mobiState = null;
+    pdfDocRef = null; mobiState = null; fileHandle = null;
     snapshot = null; wasRepaired = false;
     editor.classList.add("hidden");
     actionbar.classList.add("hidden");
@@ -408,6 +439,8 @@
     try {
       originalName = file.name || "book";
       wasRepaired = false;
+      zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = null;
+      pdfDocRef = null; mobiState = null;
       const buf = new Uint8Array(await file.arrayBuffer());
       const f = detectFormat(originalName, buf);
       if (!f) throw new Error("Unsupported file. Please choose an EPUB, PDF, or MOBI / AZW file.");
@@ -886,11 +919,27 @@
     toast("Reverted to original");
   });
 
-  function outName() {
+  function sanitizeName(s) {
+    return s.replace(/[\/\\:*?"<>|\x00-\x1f]/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+  }
+  // "Title - Author.ext" from the current form (used when saving a downloaded copy)
+  function saveFileName() {
     const dot = originalName.lastIndexOf(".");
-    const base = dot > 0 ? originalName.slice(0, dot) : originalName;
     const ext = dot > 0 ? originalName.slice(dot) : "." + fmt;
-    return base + " (edited)" + ext;
+    const title = $("f_title").value.trim() || (dot > 0 ? originalName.slice(0, dot) : originalName) || "Untitled";
+    const author = (multiValues("creator")[0] || "").trim();
+    const base = sanitizeName(author ? title + " - " + author : title) || "book";
+    return base + ext;
+  }
+
+  async function canWriteHandle() {
+    if (!fileHandle || !fileHandle.createWritable) return false;
+    try {
+      const opts = { mode: "readwrite" };
+      if (fileHandle.queryPermission && (await fileHandle.queryPermission(opts)) === "granted") return true;
+      if (fileHandle.requestPermission && (await fileHandle.requestPermission(opts)) === "granted") return true;
+      return false;
+    } catch (_) { return false; }
   }
 
   $("saveBtn").addEventListener("click", save);
@@ -902,9 +951,19 @@
       if (fmt === "epub") blob = await buildEpubBlob();
       else if (fmt === "pdf") blob = await buildPdfBlob();
       else blob = buildMobiBlob();
-      downloadBlob(blob, outName());
+
+      if (await canWriteHandle()) {
+        const w = await fileHandle.createWritable();
+        await w.write(blob);
+        await w.close();
+        toast("Saved over " + originalName + " ✓");
+      } else {
+        // No writable handle (e.g. Safari/Firefox): save a copy named "Title - Author".
+        const name = saveFileName();
+        downloadBlob(blob, name);
+        toast("Saved as " + name);
+      }
       snapshot = captureForm();
-      toast("Saved ✓ — check your downloads");
     } catch (err) {
       console.error(err);
       toast(err.message || "Something went wrong while saving", true);
@@ -923,6 +982,8 @@
     loadBuffer: (buf, name) => loadFile(new File([buf], name)),
     buildBlob: async () => fmt === "epub" ? buildEpubBlob() : fmt === "pdf" ? buildPdfBlob() : buildMobiBlob(),
     get fmt() { return fmt; },
+    get name() { return originalName; },
+    setHandle: (h) => { fileHandle = h; },
   };
 })();
 </script>
