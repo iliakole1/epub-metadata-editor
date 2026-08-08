@@ -920,7 +920,8 @@
   });
 
   function sanitizeName(s) {
-    return s.replace(/[\/\\:*?"<>|\x00-\x1f]/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
+    // Drop characters illegal in filenames, plus periods; keep spaces and hyphens.
+    return s.replace(/[\/\\:*?"<>|.\x00-\x1f]/g, "").replace(/\s+/g, " ").trim().slice(0, 150);
   }
   // "Title - Author.ext" from the current form (used when saving a downloaded copy)
   function saveFileName() {
