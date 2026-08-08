@@ -22,7 +22,13 @@ back to you. It works offline once loaded.
 - ✏️ Edit metadata with a clean, touch-friendly form that adapts to the format
 - 🛠️ **Auto-repairs truncated/corrupted EPUBs** (e.g. from an interrupted download)
   by rebuilding the archive index in-browser
-- 🖼️ Preview and replace the EPUB cover image (JPEG/PNG)
+- 🖼️ Preview and replace the EPUB cover image; **tap the preview to enlarge** it.
+  Uploads are converted to match the book's cover format so strict readers (Kobo)
+  don't show a blank cover from a format/extension mismatch.
+- ➕ **Add a cover to a book that has none** — writes the manifest item, cover
+  metadata (EPUB2 `meta` + EPUB3 `cover-image`), and a cover page.
+- 🔎 **Use the book's first image** as the cover (for books whose cover is just an
+  image on the first page), or **search Apple Books** for a high-resolution cover.
 - 🖥️ **Fit cover to screen** (on by default for EPUB): rewrites the cover page to an
   SVG that scales the cover to fit the screen, centered, without distortion — fixes
   covers that show up tiny or stretched on e-readers like the Kobo Libre 2. Creates a

@@ -138,6 +138,24 @@
   .cover-actions p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
   .fitrow { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 12.5px; color: var(--muted); cursor: pointer; line-height: 1.35; }
   .fitrow input { width: auto; margin: 2px 0 0; flex: none; }
+  .coverbtns { display: flex; flex-wrap: wrap; gap: 8px; }
+  .cover-frame img { cursor: zoom-in; }
+  .lightbox { position: fixed; inset: 0; z-index: 60; background: rgba(0,0,0,.86); display: grid; place-items: center; padding: 24px; cursor: zoom-out; }
+  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 4px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
+
+  /* iTunes cover search */
+  .sheet { position: fixed; inset: 0; z-index: 55; background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(4px); display: grid; place-items: end center; }
+  .sheet .panel { background: var(--card); border: 1px solid var(--border); border-top-left-radius: 18px; border-top-right-radius: 18px; box-shadow: var(--shadow); width: 100%; max-width: 720px; max-height: 86vh; display: flex; flex-direction: column; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); }
+  .sheet h3 { margin: 2px 0 12px; font-size: 16px; }
+  .sheet .searchrow { display: flex; gap: 8px; margin-bottom: 14px; }
+  .sheet .searchrow input { flex: 1; }
+  .results { overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 12px; }
+  .results .hit { cursor: pointer; text-align: center; }
+  .results .hit img { width: 100%; aspect-ratio: 2/3; object-fit: cover; border-radius: 8px; border: 1px solid var(--border); background: var(--field); }
+  .results .hit:active img { transform: scale(.97); }
+  .results .hit .cap { font-size: 10.5px; color: var(--muted); margin-top: 5px; line-height: 1.2; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .sheet .status { color: var(--muted); font-size: 13px; padding: 20px 4px; text-align: center; }
+  .sheet .closebar { display: flex; justify-content: flex-end; margin-top: 12px; }
 
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   @media (max-width: 460px) { .grid2 { grid-template-columns: 1fr; } }
@@ -251,9 +269,13 @@
         </div>
         <div class="cover-actions">
           <div class="section-title" style="margin-top:2px;">Cover</div>
-          <p>Replace the cover image (JPEG or PNG). Keeps the same file inside the book.</p>
-          <button class="addbtn" id="coverBtn" style="width:auto;">Choose image…</button>
-          <input id="coverInput" type="file" accept="image/jpeg,image/png" class="hidden">
+          <p id="coverHint">Replace the cover image. Other formats are converted to match the book.</p>
+          <div class="coverbtns">
+            <button class="addbtn" id="coverBtn" style="width:auto;">Choose image…</button>
+            <button class="addbtn hidden" id="useFirstImgBtn" style="width:auto;">Use first image in book</button>
+            <button class="addbtn" id="itunesBtn" style="width:auto;">Search Apple Books…</button>
+          </div>
+          <input id="coverInput" type="file" accept="image/jpeg,image/png,image/gif,image/webp" class="hidden">
           <label class="fitrow">
             <input type="checkbox" id="fitCover" checked>
             <span>Fit cover to the screen (fixes tiny or stretched covers on e-readers like Kobo)</span>
@@ -338,6 +360,24 @@
 
 <div id="toast" class="toast"></div>
 
+<!-- Tap-to-enlarge cover preview -->
+<div id="coverLightbox" class="lightbox hidden"><img id="lightboxImg" alt="Cover preview"/></div>
+
+<!-- iTunes cover search -->
+<div id="itunesSheet" class="sheet hidden">
+  <div class="panel">
+    <h3>Find a cover on Apple Books</h3>
+    <p style="margin:-6px 0 12px; font-size:11.5px; color:var(--muted);">Searches the public Apple Books catalog over the internet. Your book file never leaves your device.</p>
+    <div class="searchrow">
+      <input type="text" id="itunesQuery" placeholder="Title and author" autocomplete="off">
+      <button class="btn primary" id="itunesGo" style="flex:0 0 auto;">Search</button>
+    </div>
+    <div id="itunesStatus" class="status hidden"></div>
+    <div id="itunesResults" class="results"></div>
+    <div class="closebar"><button class="btn ghost" id="itunesClose">Close</button></div>
+  </div>
+</div>
+
 <script src="jszip.min.js"></script>
 <script src="pdf-lib.min.js"></script>
 <script>
@@ -354,7 +394,9 @@
   let snapshot = null;
   let wasRepaired = false;
   // EPUB
-  let zip = null, opfPath = null, opfDoc = null, metadataEl = null, coverPath = null, coverReplacement = null;
+  let zip = null, opfPath = null, opfDoc = null, metadataEl = null, coverPath = null;
+  let pendingCover = null;   // { kind:'replace'|'add'|'existing', data?, mime?, ext?, path? }
+  let firstImagePath = null; // first image found in the book (candidate cover)
   // PDF
   let pdfDocRef = null;
   // MOBI
@@ -416,7 +458,8 @@
 
   function resetToStart() {
     fmt = null;
-    zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = null;
+    zip = opfPath = opfDoc = metadataEl = coverPath = null;
+    pendingCover = null; firstImagePath = null;
     pdfDocRef = null; mobiState = null; fileHandle = null;
     snapshot = null; wasRepaired = false;
     editor.classList.add("hidden");
@@ -448,7 +491,8 @@
     try {
       originalName = file.name || "book";
       wasRepaired = false;
-      zip = opfPath = opfDoc = metadataEl = coverPath = coverReplacement = null;
+      zip = opfPath = opfDoc = metadataEl = coverPath = null;
+    pendingCover = null; firstImagePath = null;
       pdfDocRef = null; mobiState = null;
       const buf = new Uint8Array(await file.arrayBuffer());
       const f = detectFormat(originalName, buf);
@@ -591,6 +635,8 @@
     setPill("EPUB " + ((pkg && pkg.getAttribute("version")) || "?"));
     populateEpub();
     await loadCover();
+    firstImagePath = await findFirstBookImage();
+    refreshCoverUi();
   }
 
   function dcValues(tag) {
@@ -645,15 +691,147 @@
     for (const p of (base + "/" + rel).split("/")) { if (p === "." || p === "") continue; if (p === "..") out.pop(); else out.push(p); }
     return out.join("/");
   }
-  $("coverBtn").addEventListener("click", () => $("coverInput").click());
-  $("coverInput").addEventListener("change", async (e) => {
-    const f = e.target.files[0]; if (!f) return;
-    if (!coverPath) { toast("This book has no cover image slot to replace", true); return; }
-    coverReplacement = { data: new Uint8Array(await f.arrayBuffer()), path: coverPath };
+  // Detect an image's real format from its magic bytes.
+  function sniffImageMime(b) {
+    if (b.length >= 4 && b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47) return "image/png";
+    if (b.length >= 3 && b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff) return "image/jpeg";
+    if (b.length >= 6 && b[0] === 0x47 && b[1] === 0x49 && b[2] === 0x46) return "image/gif";
+    if (b.length >= 12 && b[0] === 0x52 && b[1] === 0x49 && b[2] === 0x46 && b[8] === 0x57 && b[9] === 0x45 && b[10] === 0x42 && b[11] === 0x50) return "image/webp";
+    return null;
+  }
+  // Re-encode an image to a target format via canvas. Strict readers (e.g. Kobo)
+  // require the cover bytes to match the slot's declared type/extension, so if the
+  // chosen image is a different format we convert it to fit the existing slot.
+  function reencodeImage(file, mime) {
+    return new Promise((resolve) => {
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = () => {
+        const c = document.createElement("canvas");
+        c.width = img.naturalWidth; c.height = img.naturalHeight;
+        const ctx = c.getContext("2d");
+        if (mime === "image/jpeg") { ctx.fillStyle = "#ffffff"; ctx.fillRect(0, 0, c.width, c.height); } // flatten transparency
+        ctx.drawImage(img, 0, 0);
+        c.toBlob((blob) => {
+          URL.revokeObjectURL(url);
+          if (!blob) return resolve(null);
+          blob.arrayBuffer().then((ab) => resolve(new Uint8Array(ab))).catch(() => resolve(null));
+        }, mime, mime === "image/jpeg" ? 0.92 : undefined);
+      };
+      img.onerror = () => { URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+  const IMG_EXT_MIME = { png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp" };
+  function coverFrameSrc() { const i = $("coverFrame").querySelector("img"); return i ? i.src : null; }
+  function setCoverPreviewSrc(src) {
     const frame = $("coverFrame"); frame.innerHTML = "";
-    const img = document.createElement("img"); img.src = URL.createObjectURL(f); img.alt = "New cover"; frame.appendChild(img);
-    toast("Cover will be replaced on save");
+    if (src) { const img = document.createElement("img"); img.src = src; img.alt = "Cover"; frame.appendChild(img); }
+    else { const none = document.createElement("span"); none.className = "none"; none.textContent = "No cover"; frame.appendChild(none); }
+  }
+  async function zipImageDataUrl(path) {
+    const f = zip.file(path); if (!f) return null;
+    const ext = ((path.match(/\.(\w+)$/) || [])[1] || "").toLowerCase();
+    return "data:" + (IMG_EXT_MIME[ext] || "image/jpeg") + ";base64," + await f.async("base64");
+  }
+  // Show/hide the cover controls to match the current book.
+  function refreshCoverUi() {
+    $("coverHint").textContent = coverPath
+      ? "Replace the cover image. Other formats are converted to match the book."
+      : "This book has no cover. Add one from an image, or use the first image in the book.";
+    $("coverBtn").textContent = coverPath ? "Choose image…" : "Add cover image…";
+    $("useFirstImgBtn").classList.toggle("hidden", !(firstImagePath && firstImagePath !== coverPath));
+  }
+  // Lightbox: tap the preview to see it larger and judge the quality.
+  $("coverFrame").addEventListener("click", () => { const s = coverFrameSrc(); if (s) { $("lightboxImg").src = s; $("coverLightbox").classList.remove("hidden"); } });
+  $("coverLightbox").addEventListener("click", () => $("coverLightbox").classList.add("hidden"));
+
+  // Turn a chosen image (from a file or a download) into a pending cover change:
+  // replace an existing cover (converting format to match) or add a new one.
+  async function chooseImage(blob) {
+    const raw = new Uint8Array(await blob.arrayBuffer());
+    const actual = sniffImageMime(raw) || blob.type || "image/jpeg";
+    if (coverPath) {
+      const targetMime = /\.png$/i.test(coverPath) ? "image/png" : "image/jpeg";
+      let data = raw, converted = false;
+      if (actual !== targetMime) { const conv = await reencodeImage(blob, targetMime); if (conv) { data = conv; converted = true; } }
+      pendingCover = { kind: "replace", data };
+      toast(converted ? "Cover set (converted to " + (targetMime === "image/png" ? "PNG" : "JPEG") + ")" : "Cover will be replaced on save");
+    } else {
+      let data = raw, mime = actual, ext = ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp" })[actual] || "jpg";
+      if (actual === "image/webp") { const conv = await reencodeImage(blob, "image/jpeg"); if (conv) { data = conv; mime = "image/jpeg"; ext = "jpg"; } }
+      pendingCover = { kind: "add", data, mime, ext };
+      toast("Cover will be added on save");
+    }
+    setCoverPreviewSrc(URL.createObjectURL(blob));
+    refreshCoverUi();
+  }
+  $("coverBtn").addEventListener("click", () => $("coverInput").click());
+  $("coverInput").addEventListener("change", (e) => { const f = e.target.files[0]; if (f) chooseImage(f); e.target.value = ""; });
+  $("useFirstImgBtn").addEventListener("click", async () => {
+    if (!firstImagePath) return;
+    pendingCover = { kind: "existing", path: firstImagePath };
+    setCoverPreviewSrc(await zipImageDataUrl(firstImagePath));
+    toast("Using the book's first image as the cover (tap it to check the quality)");
+    refreshCoverUi();
   });
+
+  // ---- iTunes / Apple Books cover search ----
+  function itunesUpscale(art) { return art.replace(/\/\d+x\d+[a-z]*\.(jpg|jpeg|png)$/i, "/1400x1400bb.$1"); }
+  function itunesStatus(msg) { const s = $("itunesStatus"); s.textContent = msg || ""; s.classList.toggle("hidden", !msg); }
+  function openItunes() {
+    const title = $("f_title").value.trim();
+    const author = (multiValues("creator")[0] || "").trim();
+    $("itunesQuery").value = (title + " " + author).trim();
+    $("itunesResults").innerHTML = ""; itunesStatus("");
+    $("itunesSheet").classList.remove("hidden");
+    if ($("itunesQuery").value) runItunesSearch();
+  }
+  async function runItunesSearch() {
+    const term = $("itunesQuery").value.trim();
+    if (!term) { itunesStatus("Type a title and author to search."); return; }
+    $("itunesResults").innerHTML = ""; itunesStatus("Searching Apple Books…");
+    try {
+      const r = await fetch("https://itunes.apple.com/search?media=ebook&entity=ebook&limit=24&term=" + encodeURIComponent(term));
+      const j = await r.json();
+      const hits = (j.results || []).filter((x) => x.artworkUrl100);
+      if (!hits.length) { itunesStatus("No covers found. Try a different title or author."); return; }
+      itunesStatus("");
+      const grid = $("itunesResults");
+      for (const h of hits) {
+        const cell = document.createElement("div"); cell.className = "hit";
+        const img = document.createElement("img"); img.loading = "lazy";
+        img.src = h.artworkUrl100.replace(/\/\d+x\d+([a-z]*)\.(jpg|jpeg|png)$/i, "/240x240$1.$2");
+        img.alt = h.trackName || "";
+        const cap = document.createElement("div"); cap.className = "cap";
+        cap.textContent = (h.trackName || "") + (h.artistName ? " · " + h.artistName : "");
+        cell.append(img, cap);
+        cell.addEventListener("click", () => selectItunesCover(h));
+        grid.appendChild(cell);
+      }
+    } catch (e) {
+      console.error(e);
+      itunesStatus("Couldn't reach Apple Books. Check your connection and try again.");
+    }
+  }
+  async function selectItunesCover(hit) {
+    itunesStatus("Loading cover…");
+    try {
+      const res = await fetch(itunesUpscale(hit.artworkUrl100));
+      if (!res.ok) throw new Error("http " + res.status);
+      const blob = await res.blob();
+      await chooseImage(blob);
+      $("itunesSheet").classList.add("hidden");
+    } catch (e) {
+      console.error(e);
+      itunesStatus("Couldn't load that cover. Try another.");
+    }
+  }
+  $("itunesBtn").addEventListener("click", openItunes);
+  $("itunesGo").addEventListener("click", runItunesSearch);
+  $("itunesQuery").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); runItunesSearch(); } });
+  $("itunesClose").addEventListener("click", () => $("itunesSheet").classList.add("hidden"));
+  $("itunesSheet").addEventListener("click", (e) => { if (e.target === $("itunesSheet")) $("itunesSheet").classList.add("hidden"); });
 
   function setSingle(tag, value) {
     const els = dcValues(tag); value = value.trim();
@@ -791,10 +969,8 @@
     const cp = findCoverPath();
     if (!cp) return;
     const mime = /\.png$/i.test(cp) ? "image/png" : "image/jpeg";
-    let bytes;
-    if (coverReplacement && coverReplacement.path === cp) bytes = coverReplacement.data;
-    else { const f = zip.file(cp); if (!f) return; bytes = await f.async("uint8array"); }
-    const size = await imageSize(bytes, mime);
+    const f = zip.file(cp); if (!f) return;
+    const size = await imageSize(await f.async("uint8array"), mime);
     if (!size || !size.w || !size.h) return;
     let pagePath = await findCoverPageZipPath(cp);
     let created = false;
@@ -808,10 +984,87 @@
     if (created) registerCoverPage(pagePath);
   }
 
+  // Find the first image used in the book (a candidate cover for books that lack one).
+  async function findFirstBookImage() {
+    const base = opfDir();
+    const manifest = opfDoc.getElementsByTagName("manifest")[0];
+    const items = manifest ? Array.from(manifest.getElementsByTagName("item")) : [];
+    const spine = opfDoc.getElementsByTagName("spine")[0];
+    const refs = spine ? Array.from(spine.getElementsByTagName("itemref")) : [];
+    for (const r of refs.slice(0, 10)) {
+      const it = items.find((x) => x.getAttribute("id") === r.getAttribute("idref"));
+      if (!it || !/html/.test(it.getAttribute("media-type") || "")) continue;
+      const xpath = joinPath(base, decodeURIComponent(it.getAttribute("href") || ""));
+      const file = zip.file(xpath); if (!file) continue;
+      try {
+        const doc = new DOMParser().parseFromString(await file.async("string"), "application/xhtml+xml");
+        let src = null;
+        const imgEl = doc.getElementsByTagName("img")[0];
+        if (imgEl) src = imgEl.getAttribute("src");
+        if (!src) { const im = doc.getElementsByTagName("image")[0]; if (im) src = im.getAttribute("xlink:href") || im.getAttributeNS("http://www.w3.org/1999/xlink", "href") || im.getAttribute("href"); }
+        if (src) {
+          const ip = joinPath(dirOf(xpath), decodeURIComponent(src.split("#")[0]));
+          if (zip.file(ip) && /\.(jpe?g|png|gif|webp)$/i.test(ip)) return ip;
+        }
+      } catch (_) {}
+    }
+    const imgItem = items.find((it) => /^image\//.test(it.getAttribute("media-type") || "") || /\.(jpe?g|png|gif|webp)$/i.test(it.getAttribute("href") || ""));
+    return imgItem ? joinPath(base, decodeURIComponent(imgItem.getAttribute("href") || "")) : null;
+  }
+
+  // Mark an image (already in the zip) as THE cover: manifest item + EPUB2 meta +
+  // EPUB3 cover-image property, so every reader picks it up.
+  function registerImageAsCover(zipPath, mime) {
+    const base = opfDir();
+    const manifest = opfDoc.getElementsByTagName("manifest")[0];
+    if (!manifest) return;
+    const items = Array.from(manifest.getElementsByTagName("item"));
+    let item = items.find((it) => joinPath(base, decodeURIComponent(it.getAttribute("href") || "")) === zipPath);
+    if (!item) {
+      const ids = new Set(items.map((it) => it.getAttribute("id")));
+      let id = "cover-image", k = 1; while (ids.has(id)) id = "cover-image" + (k++);
+      item = opfDoc.createElementNS(OPF_NS, "item");
+      item.setAttribute("id", id);
+      item.setAttribute("href", relFromDir(base, zipPath));
+      item.setAttribute("media-type", mime || "image/jpeg");
+      manifest.appendChild(opfDoc.createTextNode("\n    ")); manifest.appendChild(item);
+    }
+    // EPUB3 cover-image property: only on this item
+    for (const it of Array.from(manifest.getElementsByTagName("item"))) {
+      const props = (it.getAttribute("properties") || "").split(/\s+/).filter((x) => x && x !== "cover-image");
+      if (it === item) props.push("cover-image");
+      if (props.length) it.setAttribute("properties", props.join(" ")); else it.removeAttribute("properties");
+    }
+    // EPUB2 <meta name="cover" content="id">
+    let meta = Array.from(metadataEl.getElementsByTagName("meta")).find((m) => (m.getAttribute("name") || "").toLowerCase() === "cover");
+    if (!meta) { meta = opfDoc.createElementNS(OPF_NS, "meta"); metadataEl.appendChild(opfDoc.createTextNode("\n    ")); metadataEl.appendChild(meta); meta.setAttribute("name", "cover"); }
+    meta.setAttribute("content", item.getAttribute("id"));
+  }
+
+  // Apply the pending cover change (write bytes / register metadata) before fit + save.
+  async function applyPendingCover() {
+    if (!pendingCover) return;
+    if (pendingCover.kind === "replace") {
+      if (coverPath) zip.file(coverPath, pendingCover.data);
+    } else if (pendingCover.kind === "add") {
+      const base = opfDir();
+      let path = joinPath(base, "Images/cover." + pendingCover.ext);
+      let n = 1; while (zip.file(path)) path = joinPath(base, "Images/cover" + (n++) + "." + pendingCover.ext);
+      zip.file(path, pendingCover.data);
+      registerImageAsCover(path, pendingCover.mime);
+      coverPath = path;
+    } else if (pendingCover.kind === "existing") {
+      const ext = ((pendingCover.path.match(/\.(\w+)$/) || [])[1] || "").toLowerCase();
+      registerImageAsCover(pendingCover.path, IMG_EXT_MIME[ext] || "image/jpeg");
+      coverPath = pendingCover.path;
+    }
+    pendingCover = null;
+  }
+
   async function buildEpubBlob() {
     applyEpubForm();
-    if (coverReplacement && coverReplacement.path) zip.file(coverReplacement.path, coverReplacement.data);
-    if ($("fitCover") && $("fitCover").checked) { try { await applyCoverFit(); } catch (e) { console.warn("Cover-fit skipped:", e); } }
+    await applyPendingCover();
+    if ($("fitCover") && $("fitCover").checked && findCoverPath()) { try { await applyCoverFit(); } catch (e) { console.warn("Cover-fit skipped:", e); } }
     zip.file(opfPath, new XMLSerializer().serializeToString(opfDoc));
     if (zip.file("mimetype")) zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
     return zip.generateAsync({ type: "blob", mimeType: "application/epub+zip", compression: "DEFLATE", compressionOptions: { level: 6 } });
@@ -1047,7 +1300,7 @@
     $("f_title").value = s.title; $("f_description").value = s.description; $("f_publisher").value = s.publisher;
     $("f_date").value = s.date; $("f_language").value = s.language; $("f_rights").value = s.rights;
     fillMulti("creator", s.creator); fillMulti("subject", s.subject); fillMulti("identifier", s.identifier);
-    if (fmt === "epub") { coverReplacement = null; loadCover(); }
+    if (fmt === "epub") { pendingCover = null; loadCover(); refreshCoverUi(); }
     toast("Reverted to original");
   });
 
