@@ -136,6 +136,8 @@
   .cover-frame .none { color: var(--muted); font-size: 12px; text-align: center; padding: 8px; }
   .cover-actions { flex: 1; min-width: 0; }
   .cover-actions p { margin: 0 0 10px; font-size: 12.5px; color: var(--muted); }
+  .fitrow { display: flex; gap: 8px; align-items: flex-start; margin-top: 12px; font-size: 12.5px; color: var(--muted); cursor: pointer; line-height: 1.35; }
+  .fitrow input { width: auto; margin: 2px 0 0; flex: none; }
 
   .grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 14px; }
   @media (max-width: 460px) { .grid2 { grid-template-columns: 1fr; } }
@@ -252,6 +254,10 @@
           <p>Replace the cover image (JPEG or PNG). Keeps the same file inside the book.</p>
           <button class="addbtn" id="coverBtn" style="width:auto;">Choose image…</button>
           <input id="coverInput" type="file" accept="image/jpeg,image/png" class="hidden">
+          <label class="fitrow">
+            <input type="checkbox" id="fitCover" checked>
+            <span>Fit cover to the screen (fixes tiny or stretched covers on e-readers like Kobo)</span>
+          </label>
         </div>
       </div>
     </div>
@@ -677,10 +683,132 @@
     setMulti("subject", multiValues("subject"));
     const ids = multiValues("identifier"); if (ids.length) setMulti("identifier", ids);
   }
+  // --- "Fit cover to screen": rewrite (or create) the cover page so the cover
+  //     image scales to fit the screen, centered, without distortion. Uses the
+  //     SVG preserveAspectRatio="xMidYMid meet" pattern that e-readers honour. ---
+  function dirOf(p) { const i = p.lastIndexOf("/"); return i === -1 ? "" : p.slice(0, i); }
+  function relFromDir(fromDir, toPath) {
+    const from = fromDir ? fromDir.split("/").filter(Boolean) : [];
+    const to = toPath.split("/").filter(Boolean);
+    let i = 0; while (i < from.length && i < to.length && from[i] === to[i]) i++;
+    return ("../".repeat(from.length - i) + to.slice(i).join("/")) || to.join("/");
+  }
+  async function imageSize(bytes, mime) {
+    try {
+      const bmp = await createImageBitmap(new Blob([bytes], { type: mime }));
+      const s = { w: bmp.width, h: bmp.height }; if (bmp.close) bmp.close(); return s;
+    } catch (_) {
+      return await new Promise((res) => {
+        const url = URL.createObjectURL(new Blob([bytes], { type: mime }));
+        const img = new Image();
+        img.onload = () => { res({ w: img.naturalWidth, h: img.naturalHeight }); URL.revokeObjectURL(url); };
+        img.onerror = () => { res(null); URL.revokeObjectURL(url); };
+        img.src = url;
+      });
+    }
+  }
+  function coverPageSvg(href, w, h) {
+    const esc = (s) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;");
+    return '<?xml version="1.0" encoding="utf-8"?>\n' +
+      '<!DOCTYPE html>\n' +
+      '<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">\n' +
+      '<head>\n<meta charset="utf-8"/>\n<title>Cover</title>\n' +
+      '<style type="text/css">\n' +
+      '  html, body { margin: 0; padding: 0; height: 100%; }\n' +
+      '  body { text-align: center; background: #ffffff; }\n' +
+      '  svg { height: 100%; width: 100%; }\n' +
+      '</style>\n</head>\n<body>\n' +
+      '<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" version="1.1" ' +
+      'height="100%" width="100%" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="xMidYMid meet">\n' +
+      '<image width="' + w + '" height="' + h + '" xlink:href="' + esc(href) + '"/>\n' +
+      '</svg>\n</body>\n</html>\n';
+  }
+  async function findCoverPageZipPath(coverImgPath) {
+    const base = opfDir();
+    const guide = opfDoc.getElementsByTagName("guide")[0];
+    if (guide) {
+      const ref = Array.from(guide.getElementsByTagName("reference")).find((r) => (r.getAttribute("type") || "").toLowerCase() === "cover");
+      const href = ref && ref.getAttribute("href");
+      if (href) return joinPath(base, decodeURIComponent(href.split("#")[0]));
+    }
+    const manifest = opfDoc.getElementsByTagName("manifest")[0];
+    const items = manifest ? Array.from(manifest.getElementsByTagName("item")) : [];
+    // EPUB3 landmarks in the nav document
+    const navItem = items.find((it) => (it.getAttribute("properties") || "").split(/\s+/).includes("nav"));
+    if (navItem) {
+      const navPath = joinPath(base, decodeURIComponent(navItem.getAttribute("href") || ""));
+      const navFile = zip.file(navPath);
+      if (navFile) {
+        try {
+          const navDoc = new DOMParser().parseFromString(await navFile.async("string"), "application/xhtml+xml");
+          const a = Array.from(navDoc.getElementsByTagName("a")).find((x) => /\bcover\b/.test(x.getAttribute("epub:type") || ""));
+          if (a && a.getAttribute("href")) return joinPath(dirOf(navPath), decodeURIComponent(a.getAttribute("href").split("#")[0]));
+        } catch (_) {}
+      }
+    }
+    // Fallback: the first spine page, if it references the cover image or is named "cover"
+    const spine = opfDoc.getElementsByTagName("spine")[0];
+    const firstRef = spine && spine.getElementsByTagName("itemref")[0];
+    if (firstRef) {
+      const it = items.find((x) => x.getAttribute("id") === firstRef.getAttribute("idref"));
+      if (it && /html/.test(it.getAttribute("media-type") || "")) {
+        const xpath = joinPath(base, decodeURIComponent(it.getAttribute("href") || ""));
+        const f = zip.file(xpath);
+        if (f) {
+          if (/cover/i.test(xpath)) return xpath;
+          try { const txt = await f.async("string"); if (txt.includes(coverImgPath.split("/").pop())) return xpath; } catch (_) {}
+        }
+      }
+    }
+    return null;
+  }
+  function registerCoverPage(pagePath) {
+    const base = opfDir();
+    const manifest = opfDoc.getElementsByTagName("manifest")[0];
+    const spine = opfDoc.getElementsByTagName("spine")[0];
+    const pkg = opfDoc.getElementsByTagName("package")[0];
+    if (!manifest || !spine || !pkg) return;
+    const hrefFromOpf = relFromDir(base, pagePath);
+    const ids = new Set(Array.from(manifest.getElementsByTagName("item")).map((it) => it.getAttribute("id")));
+    let id = "coverpagefit", k = 1; while (ids.has(id)) id = "coverpagefit" + (k++);
+    const item = opfDoc.createElementNS(OPF_NS, "item");
+    item.setAttribute("id", id); item.setAttribute("href", hrefFromOpf); item.setAttribute("media-type", "application/xhtml+xml");
+    manifest.appendChild(opfDoc.createTextNode("\n    ")); manifest.appendChild(item);
+    const itemref = opfDoc.createElementNS(OPF_NS, "itemref");
+    itemref.setAttribute("idref", id); itemref.setAttribute("linear", "yes");
+    spine.insertBefore(itemref, spine.firstChild);
+    let guide = opfDoc.getElementsByTagName("guide")[0];
+    if (!guide) { guide = opfDoc.createElementNS(OPF_NS, "guide"); pkg.appendChild(guide); }
+    const ref = opfDoc.createElementNS(OPF_NS, "reference");
+    ref.setAttribute("type", "cover"); ref.setAttribute("title", "Cover"); ref.setAttribute("href", hrefFromOpf);
+    guide.appendChild(ref);
+  }
+  async function applyCoverFit() {
+    const cp = findCoverPath();
+    if (!cp) return;
+    const mime = /\.png$/i.test(cp) ? "image/png" : "image/jpeg";
+    let bytes;
+    if (coverReplacement && coverReplacement.path === cp) bytes = coverReplacement.data;
+    else { const f = zip.file(cp); if (!f) return; bytes = await f.async("uint8array"); }
+    const size = await imageSize(bytes, mime);
+    if (!size || !size.w || !size.h) return;
+    let pagePath = await findCoverPageZipPath(cp);
+    let created = false;
+    if (!pagePath || !zip.file(pagePath)) {
+      const base = opfDir();
+      pagePath = joinPath(base, "cover.xhtml");
+      let n = 1; while (zip.file(pagePath)) pagePath = joinPath(base, "cover_fit" + (n++) + ".xhtml");
+      created = true;
+    }
+    zip.file(pagePath, coverPageSvg(relFromDir(dirOf(pagePath), cp), size.w, size.h));
+    if (created) registerCoverPage(pagePath);
+  }
+
   async function buildEpubBlob() {
     applyEpubForm();
-    zip.file(opfPath, new XMLSerializer().serializeToString(opfDoc));
     if (coverReplacement && coverReplacement.path) zip.file(coverReplacement.path, coverReplacement.data);
+    if ($("fitCover") && $("fitCover").checked) { try { await applyCoverFit(); } catch (e) { console.warn("Cover-fit skipped:", e); } }
+    zip.file(opfPath, new XMLSerializer().serializeToString(opfDoc));
     if (zip.file("mimetype")) zip.file("mimetype", "application/epub+zip", { compression: "STORE" });
     return zip.generateAsync({ type: "blob", mimeType: "application/epub+zip", compression: "DEFLATE", compressionOptions: { level: 6 } });
   }

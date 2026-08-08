@@ -23,6 +23,10 @@ back to you. It works offline once loaded.
 - 🛠️ **Auto-repairs truncated/corrupted EPUBs** (e.g. from an interrupted download)
   by rebuilding the archive index in-browser
 - 🖼️ Preview and replace the EPUB cover image (JPEG/PNG)
+- 🖥️ **Fit cover to screen** (on by default for EPUB): rewrites the cover page to an
+  SVG that scales the cover to fit the screen, centered, without distortion — fixes
+  covers that show up tiny or stretched on e-readers like the Kobo Libre 2. Creates a
+  cover page if the book doesn't have one.
 - 💾 **Saves over the original file** where the browser supports it
   (Chrome / Edge desktop, Android Chrome); otherwise downloads a copy named
   `Title - Author.ext`
