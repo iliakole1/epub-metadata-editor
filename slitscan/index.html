@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#000000">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>SlitScan</title>
+<style>
+  :root {
+    --bg: #000;
+    --panel: rgba(18, 18, 22, 0.82);
+    --line: rgba(255, 255, 255, 0.12);
+    --text: #f2f2f5;
+    --muted: #9a9aa6;
+    --accent: #ff3b6b;
+    --accent-2: #ffb03b;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font: 15px/1.3 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    overflow: hidden; overscroll-behavior: none; touch-action: manipulation;
+    -webkit-user-select: none; user-select: none;
+  }
+  #out { position: fixed; inset: 0; width: 100vw; height: 100vh; height: 100dvh; display: block; background: #000; }
+  #vid { position: fixed; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+
+  /* Sweep cursor */
+  #cursor {
+    position: fixed; left: 0; top: 0; pointer-events: none; display: none;
+    background: var(--accent); box-shadow: 0 0 8px var(--accent); opacity: 0.85;
+  }
+
+  /* Live preview with slit marker */
+  #preview {
+    position: fixed; top: calc(12px + env(safe-area-inset-top)); right: calc(12px + env(safe-area-inset-right));
+    width: 112px; border-radius: 10px; border: 1px solid var(--line);
+    background: #111; box-shadow: 0 4px 20px rgba(0,0,0,.5); display: none;
+  }
+
+  /* Start screen */
+  #start {
+    position: fixed; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 18px; padding: 24px; text-align: center;
+    background: radial-gradient(ellipse at 50% 30%, #2a0f1a 0%, #000 70%);
+    z-index: 10;
+  }
+  #start h1 {
+    margin: 0; font-size: 44px; letter-spacing: -0.02em; font-weight: 800;
+    background: linear-gradient(90deg, var(--accent), var(--accent-2));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+  }
+  #start p { margin: 0; color: var(--muted); max-width: 340px; }
+  #start .err { color: #ff8a8a; }
+  .big {
+    appearance: none; border: 0; border-radius: 14px; padding: 15px 26px; font: inherit; font-weight: 700;
+    color: #fff; background: linear-gradient(90deg, var(--accent), #ff6a3b); cursor: pointer; min-width: 220px;
+  }
+  .ghost {
+    display: inline-block; border: 1px solid var(--line); border-radius: 14px; padding: 13px 22px;
+    color: var(--text); cursor: pointer; min-width: 220px;
+  }
+  .ghost input { display: none; }
+
+  /* Control panel */
+  #panel {
+    position: fixed; left: 50%; bottom: 0; transform: translateX(-50%);
+    width: min(560px, 100%);
+    padding: 10px 14px calc(12px + env(safe-area-inset-bottom));
+    background: var(--panel); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border: 1px solid var(--line); border-bottom: 0; border-radius: 18px 18px 0 0;
+    transition: transform .25s ease; z-index: 5;
+  }
+  #panel.collapsed { transform: translate(-50%, calc(100% - 34px - env(safe-area-inset-bottom))); }
+  #handle {
+    display: flex; justify-content: center; align-items: center; height: 22px; margin: -4px 0 6px; cursor: pointer;
+  }
+  #handle span { width: 42px; height: 5px; border-radius: 3px; background: rgba(255,255,255,.3); }
+  .row { display: flex; align-items: center; gap: 10px; margin: 8px 0; }
+  .row > label.lbl { width: 78px; flex: none; color: var(--muted); font-size: 13px; }
+  .seg { display: flex; flex: 1; background: rgba(255,255,255,.06); border-radius: 11px; padding: 3px; gap: 3px; }
+  .seg button {
+    flex: 1; appearance: none; border: 0; background: transparent; color: var(--text); font: inherit;
+    padding: 9px 6px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+  }
+  .seg button.on { background: var(--text); color: #000; font-weight: 700; }
+  input[type=range] { flex: 1; accent-color: var(--accent); height: 30px; }
+  .val { width: 64px; flex: none; text-align: right; font-variant-numeric: tabular-nums; font-size: 13px; color: var(--muted); }
+  .tools { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; margin-top: 10px; }
+  .tools button {
+    appearance: none; border: 1px solid var(--line); background: rgba(255,255,255,.06); color: var(--text);
+    border-radius: 12px; padding: 9px 4px 7px; font: inherit; font-size: 11px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 3px;
+  }
+  .tools button b { font-size: 18px; line-height: 1; font-weight: 400; }
+  .tools button.on { border-color: var(--accent); color: var(--accent); }
+  .tools button:disabled { opacity: .35; }
+  #toast {
+    position: fixed; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%);
+    background: rgba(0,0,0,.75); padding: 8px 14px; border-radius: 20px; font-size: 13px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<canvas id="out"></canvas>
+<video id="vid" playsinline muted autoplay></video>
+<div id="cursor"></div>
+<canvas id="preview"></canvas>
+<div id="toast"></div>
+
+<div id="start">
+  <h1>SlitScan</h1>
+  <p>Turns time into space: a single line of pixels from your camera is painted across the screen, frame by frame.</p>
+  <button class="big" id="startCam">Start camera</button>
+  <label class="ghost">Use a video file<input type="file" id="file" accept="video/*"></label>
+  <p id="startErr" class="err"></p>
+</div>
+
+<div id="panel">
+  <div id="handle" title="Show / hide controls"><span></span></div>
+
+  <div class="row">
+    <label class="lbl">Mode</label>
+    <div class="seg" id="orientSeg">
+      <button data-v="h" class="on">Horizontal</button>
+      <button data-v="v">Vertical</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <label class="lbl">Direction</label>
+    <div class="seg" id="dirSeg">
+      <button data-v="1" class="on"></button>
+      <button data-v="-1"></button>
+    </div>
+  </div>
+
+  <div class="row">
+    <label class="lbl">Style</label>
+    <div class="seg" id="styleSeg">
+      <button data-v="sweep" class="on">Sweep</button>
+      <button data-v="scroll">Scroll</button>
+    </div>
+  </div>
+
+  <div class="row">
+    <label class="lbl" for="speed">Speed</label>
+    <input type="range" id="speed" min="0" max="100" value="55">
+    <span class="val" id="speedVal"></span>
+  </div>
+
+  <div class="row">
+    <label class="lbl" for="slit">Slit at</label>
+    <input type="range" id="slit" min="0" max="100" value="50">
+    <span class="val" id="slitVal">50%</span>
+  </div>
+
+  <div class="tools">
+    <button id="pauseBtn"><b>❚❚</b>Pause</button>
+    <button id="clearBtn"><b>⌫</b>Clear</button>
+    <button id="flipBtn"><b>⟲</b>Flip cam</button>
+    <button id="prevBtn" class="on"><b>◳</b>Preview</button>
+    <button id="saveBtn"><b>⤓</b>Save</button>
+  </div>
+</div>
+
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const out = $('out'), ctx = out.getContext('2d', { alpha: false });
+  const vid = $('vid');
+  const prev = $('preview'), pctx = prev.getContext('2d');
+  const cursor = $('cursor');
+  const panel = $('panel');
+
+  const state = {
+    orient: 'h',        // 'h' = vertical slit moving left/right, 'v' = horizontal slit moving up/down
+    dir: 1,             // 1 = left→right / top→bottom, -1 = reverse
+    style: 'sweep',     // 'sweep' = write head moves & wraps, 'scroll' = image flows
+    speed: 1,           // pixels per 60fps-frame
+    slit: 0.5,          // slit position within the source frame (0..1)
+    paused: false,
+    showPreview: true,
+    facing: 'user',
+    source: null,       // 'camera' | 'file'
+    stream: null,
+    pos: 0,
+    acc: 0,
+    last: 0,
+    scale: 1,           // canvas px per CSS px
+  };
+
+  // ---------- Canvas sizing ----------
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.round(window.innerWidth * dpr), h = Math.round(window.innerHeight * dpr);
+    if (w === out.width && h === out.height) return;
+    // Preserve what has been drawn so far
+    let keep = null;
+    if (out.width && out.height) {
+      keep = document.createElement('canvas');
+      keep.width = out.width; keep.height = out.height;
+      keep.getContext('2d').drawImage(out, 0, 0);
+    }
+    out.width = w; out.height = h;
+    state.scale = dpr;
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h);
+    if (keep) ctx.drawImage(keep, 0, 0);
+    ctx.imageSmoothingEnabled = true;
+    const len = state.orient === 'h' ? w : h;
+    if (state.pos >= len) state.pos = state.dir > 0 ? 0 : len - 1;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- Sources ----------
+  async function startCamera() {
+    stopStream();
+    $('startErr').textContent = '';
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      $('startErr').textContent = 'Camera not available. The page must be opened over HTTPS (or localhost).';
+      return false;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: state.facing, width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 60 } }
+      });
+      state.stream = stream;
+      state.source = 'camera';
+      vid.removeAttribute('src');
+      vid.srcObject = stream;
+      vid.loop = false;
+      await vid.play().catch(() => {});
+      $('flipBtn').disabled = false;
+      return true;
+    } catch (e) {
+      $('startErr').textContent = 'Could not open the camera: ' + (e.message || e.name);
+      return false;
+    }
+  }
+
+  function stopStream() {
+    if (state.stream) { state.stream.getTracks().forEach(t => t.stop()); state.stream = null; }
+  }
+
+  function startFile(file) {
+    stopStream();
+    vid.srcObject = null;
+    if (vid.dataset.url) URL.revokeObjectURL(vid.dataset.url);
+    const url = URL.createObjectURL(file);
+    vid.dataset.url = url;
+    vid.src = url;
+    vid.loop = true;
+    state.source = 'file';
+    $('flipBtn').disabled = true;
+    vid.play().catch(() => {});
+  }
+
+  function begin() {
+    $('start').style.display = 'none';
+    requestWakeLock();
+    applyUI();
+  }
+
+  $('startCam').onclick = async () => { if (await startCamera()) begin(); };
+  $('file').onchange = e => { const f = e.target.files[0]; if (f) { startFile(f); begin(); } };
+
+  // Keep the screen awake while scanning
+  let wakeLock = null;
+  async function requestWakeLock() {
+    try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen'); } catch (_) {}
+  }
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && state.source) { requestWakeLock(); vid.play().catch(() => {}); }
+  });
+
+  // ---------- Drawing ----------
+  const mirrored = () => state.source === 'camera' && state.facing === 'user';
+
+  // Draw the current slit into the output at position p (along the scan axis), n px thick.
+  function drawSlit(p, n) {
+    const vw = vid.videoWidth, vh = vid.videoHeight, W = out.width, H = out.height;
+    if (state.orient === 'h') {
+      // Vertical line of pixels from the video, painted as a column.
+      const frac = mirrored() ? 1 - state.slit : state.slit;
+      const sx = Math.min(vw - 1, Math.max(0, Math.floor(frac * vw)));
+      ctx.drawImage(vid, sx, 0, 1, vh, p, 0, n, H);
+    } else {
+      // Horizontal line of pixels from the video, painted as a row.
+      const sy = Math.min(vh - 1, Math.max(0, Math.floor(state.slit * vh)));
+      if (mirrored()) {
+        ctx.save(); ctx.translate(W, 0); ctx.scale(-1, 1);
+        ctx.drawImage(vid, 0, sy, vw, 1, 0, p, W, n);
+        ctx.restore();
+      } else {
+        ctx.drawImage(vid, 0, sy, vw, 1, 0, p, W, n);
+      }
+    }
+  }
+
+  function step(n) {
+    const W = out.width, H = out.height;
+    const len = state.orient === 'h' ? W : H;
+    if (state.style === 'scroll') {
+      // Shift the existing image along the scan direction, paint the new slit at the leading edge.
+      const dx = state.orient === 'h' ? n * state.dir : 0;
+      const dy = state.orient === 'v' ? n * state.dir : 0;
+      ctx.drawImage(out, dx, dy);
+      drawSlit(state.dir > 0 ? 0 : len - n, n);
+    } else {
+      // Moving write head that wraps around at the edge.
+      for (let i = 0; i < n; i++) {
+        drawSlit(state.pos, 1);
+        state.pos += state.dir;
+        if (state.pos >= len) state.pos = 0;
+        else if (state.pos < 0) state.pos = len - 1;
+      }
+    }
+  }
+
+  function updateCursor() {
+    if (state.style !== 'sweep' || !state.source) { cursor.style.display = 'none'; return; }
+    cursor.style.display = 'block';
+    const p = state.pos / state.scale;
+    if (state.orient === 'h') {
+      cursor.style.width = '2px'; cursor.style.height = '100%';
+      cursor.style.transform = `translateX(${p - 1}px)`;
+    } else {
+      cursor.style.width = '100%'; cursor.style.height = '2px';
+      cursor.style.transform = `translateY(${p - 1}px)`;
+    }
+  }
+
+  function drawPreview() {
+    const vw = vid.videoWidth, vh = vid.videoHeight;
+    if (!state.showPreview || !vw) { prev.style.display = 'none'; return; }
+    prev.style.display = 'block';
+    const pw = 224, ph = Math.round(pw * vh / vw);
+    if (prev.width !== pw || prev.height !== ph) { prev.width = pw; prev.height = ph; prev.style.height = (ph / 2) + 'px'; }
+    pctx.save();
+    if (mirrored()) { pctx.translate(pw, 0); pctx.scale(-1, 1); }
+    pctx.drawImage(vid, 0, 0, pw, ph);
+    pctx.restore();
+    pctx.fillStyle = '#ff3b6b';
+    if (state.orient === 'h') pctx.fillRect(Math.round(state.slit * (pw - 2)), 0, 2, ph);
+    else pctx.fillRect(0, Math.round(state.slit * (ph - 2)), pw, 2);
+  }
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    const dt = state.last ? Math.min(4, (now - state.last) / (1000 / 60)) : 1;
+    state.last = now;
+    if (!state.source || vid.readyState < 2 || !vid.videoWidth) return;
+    drawPreview();
+    if (!state.paused) {
+      state.acc += state.speed * dt;
+      const n = Math.floor(state.acc);
+      if (n > 0) { state.acc -= n; step(n); }
+    }
+    updateCursor();
+  }
+  requestAnimationFrame(frame);
+
+  // ---------- Controls ----------
+  const SPEED_MIN = 0.05, SPEED_MAX = 12;
+  function sliderToSpeed(v) { return SPEED_MIN * Math.pow(SPEED_MAX / SPEED_MIN, v / 100); }
+
+  function seg(id, onPick) {
+    const el = $(id);
+    el.addEventListener('click', e => {
+      const b = e.target.closest('button'); if (!b) return;
+      onPick(b.dataset.v);
+      applyUI();
+    });
+  }
+
+  function setOrient(o) {
+    if (o === state.orient) return;
+    state.orient = o;
+    const len = o === 'h' ? out.width : out.height;
+    state.pos = state.dir > 0 ? 0 : len - 1;
+  }
+
+  seg('orientSeg', setOrient);
+  seg('dirSeg', v => { state.dir = +v; });
+  seg('styleSeg', v => { state.style = v; });
+
+  function applyUI() {
+    const mark = (id, v) => $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
+    mark('orientSeg', state.orient);
+    mark('dirSeg', state.dir);
+    mark('styleSeg', state.style);
+    const [a, b] = $('dirSeg').querySelectorAll('button');
+    if (state.orient === 'h') { a.textContent = 'Left → Right'; b.textContent = 'Right → Left'; }
+    else { a.textContent = 'Top ↓ Bottom'; b.textContent = 'Bottom ↑ Top'; }
+    $('pauseBtn').innerHTML = state.paused ? '<b>▶</b>Resume' : '<b>❚❚</b>Pause';
+    $('pauseBtn').classList.toggle('on', state.paused);
+    $('prevBtn').classList.toggle('on', state.showPreview);
+    updateCursor();
+  }
+
+  const speedEl = $('speed');
+  function onSpeed() {
+    state.speed = sliderToSpeed(+speedEl.value);
+    $('speedVal').textContent = (state.speed < 1 ? state.speed.toFixed(2) : state.speed.toFixed(1)) + ' px';
+  }
+  speedEl.addEventListener('input', onSpeed);
+  onSpeed();
+
+  const slitEl = $('slit');
+  slitEl.addEventListener('input', () => {
+    state.slit = +slitEl.value / 100;
+    $('slitVal').textContent = slitEl.value + '%';
+  });
+
+  $('pauseBtn').onclick = () => { state.paused = !state.paused; applyUI(); };
+  $('clearBtn').onclick = () => {
+    ctx.fillStyle = '#000'; ctx.fillRect(0, 0, out.width, out.height);
+    const len = state.orient === 'h' ? out.width : out.height;
+    state.pos = state.dir > 0 ? 0 : len - 1;
+    state.acc = 0;
+  };
+  $('flipBtn').onclick = async () => {
+    state.facing = state.facing === 'user' ? 'environment' : 'user';
+    if (!(await startCamera())) {
+      state.facing = state.facing === 'user' ? 'environment' : 'user';
+      toast('Could not switch camera');
+      await startCamera();
+    }
+  };
+  $('prevBtn').onclick = () => { state.showPreview = !state.showPreview; applyUI(); };
+  $('saveBtn').onclick = save;
+
+  $('handle').onclick = () => panel.classList.toggle('collapsed');
+  // Tap the image to hide/show the controls for a clean view
+  out.addEventListener('click', () => panel.classList.toggle('collapsed'));
+
+  // Keyboard shortcuts (desktop)
+  window.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
+    const k = e.key;
+    if (k === 'ArrowRight') { setOrient('h'); state.dir = 1; }
+    else if (k === 'ArrowLeft') { setOrient('h'); state.dir = -1; }
+    else if (k === 'ArrowDown') { setOrient('v'); state.dir = 1; }
+    else if (k === 'ArrowUp') { setOrient('v'); state.dir = -1; }
+    else if (k === ' ') { state.paused = !state.paused; }
+    else if (k === 'c' || k === 'C') { $('clearBtn').click(); return; }
+    else if (k === 's' || k === 'S') { save(); return; }
+    else return;
+    e.preventDefault();
+    applyUI();
+  });
+
+  // ---------- Save ----------
+  function save() {
+    out.toBlob(async blob => {
+      if (!blob) return;
+      const name = 'slitscan-' + new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19) + '.png';
+      const file = new File([blob], name, { type: 'image/png' });
+      const touch = matchMedia('(pointer: coarse)').matches;
+      if (touch && navigator.canShare && navigator.canShare({ files: [file] })) {
+        try { await navigator.share({ files: [file], title: 'SlitScan' }); return; }
+        catch (e) { if (e.name === 'AbortError') return; }
+      }
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = name;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(a.href), 2000);
+      toast('Saved ' + name);
+    }, 'image/png');
+  }
+
+  let toastTimer;
+  function toast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
+
+  applyUI();
+})();
+</script>
+</body>
+</html>
