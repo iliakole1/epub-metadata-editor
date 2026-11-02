@@ -78,3 +78,22 @@ then visit `http://localhost:8000`.
 ## License
 
 MIT
+
+---
+
+## 🎞️ SlitScan (bonus app)
+
+`slitscan/index.html` is a standalone, single-file slit-scan camera app. It paints one
+line of pixels from your camera (or a video file) across the screen frame by frame,
+turning time into space.
+
+- **Horizontal** mode (vertical slit, Left → Right / Right → Left) or **Vertical** mode
+  (horizontal slit, Top → Bottom / Bottom → Top)
+- **Sweep** (a write head moves across and wraps) or **Scroll** (the image flows continuously)
+- **Speed** slider from very slow (0.05 px/frame) to fast (12 px/frame)
+- **Slit at** slider to choose which line of the camera image is sampled, with a live preview
+- Front/back camera flip, pause, clear, and save as PNG (uses the share sheet on phones)
+- Tap the image to hide the controls; desktop shortcuts: arrow keys = direction, Space = pause,
+  C = clear, S = save
+
+The camera requires HTTPS (or `localhost`), e.g. GitHub Pages at `…/slitscan/`.
