@@ -90,14 +90,14 @@ turning time into space.
 - **Horizontal** mode (vertical slit, Left → Right / Right → Left) or **Vertical** mode
   (horizontal slit, Top → Bottom / Bottom → Top)
 - Four styles:
-  - **Sweep**: a write head moves across and wraps
-  - **Scroll**: the image flows continuously
+  - **Delay** (default): a continuous time delay. The strip at the top (or bottom / left /
+    right) is realtime, and each next strip shows the camera a set time later than its
+    neighbour. **Strip delay** (10 ms – 2 s) and **Strip size** (2 – 120 px) sliders.
   - **Warp**: a line moves across the live camera view, freezing everything behind it
     (move with the line to stretch and bend yourself); Restart scans again
-  - **Delay**: each strip of the screen shows the camera at a different time delay —
-    one edge is live and the delay grows toward the other, so motion ripples across
-- **Speed** slider from very slow (0.05 px/frame) to fast (12 px/frame); in Delay style it
-  sets the total delay across the screen (up to 4 s)
+  - **Sweep**: a write head moves across and wraps
+  - **Scroll**: the image flows continuously
+- **Speed** slider (Warp / Sweep / Scroll) from very slow (0.05 px/frame) to fast (12 px/frame)
 - **Slit at** slider to choose which line of the camera image is sampled, with a live preview
 - Front/back camera flip, pause, clear, and save as PNG (uses the share sheet on phones)
 - Tap the image to hide the controls; desktop shortcuts: arrow keys = direction, Space = pause,
