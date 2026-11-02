@@ -98,6 +98,8 @@
   .tools button b { font-size: 18px; line-height: 1; font-weight: 400; }
   .tools button.on { border-color: var(--accent); color: var(--accent); }
   .tools button:disabled { opacity: .35; }
+  .row.off { opacity: .35; pointer-events: none; }
+  #styleSeg button { padding-left: 2px; padding-right: 2px; }
   #toast {
     position: fixed; left: 50%; top: calc(16px + env(safe-area-inset-top)); transform: translateX(-50%);
     background: rgba(0,0,0,.75); padding: 8px 14px; border-radius: 20px; font-size: 13px;
@@ -146,16 +148,18 @@
     <div class="seg" id="styleSeg">
       <button data-v="sweep" class="on">Sweep</button>
       <button data-v="scroll">Scroll</button>
+      <button data-v="warp">Warp</button>
+      <button data-v="delay">Delay</button>
     </div>
   </div>
 
   <div class="row">
-    <label class="lbl" for="speed">Speed</label>
+    <label class="lbl" for="speed" id="speedLbl">Speed</label>
     <input type="range" id="speed" min="0" max="100" value="55">
     <span class="val" id="speedVal"></span>
   </div>
 
-  <div class="row">
+  <div class="row" id="slitRow">
     <label class="lbl" for="slit">Slit at</label>
     <input type="range" id="slit" min="0" max="100" value="50">
     <span class="val" id="slitVal">50%</span>
@@ -182,7 +186,11 @@
   const state = {
     orient: 'h',        // 'h' = vertical slit moving left/right, 'v' = horizontal slit moving up/down
     dir: 1,             // 1 = left→right / top→bottom, -1 = reverse
-    style: 'sweep',     // 'sweep' = write head moves & wraps, 'scroll' = image flows
+    style: 'sweep',     // 'sweep' = write head moves & wraps, 'scroll' = image flows,
+                        // 'warp' = line moves over the live view, freezing what it passes,
+                        // 'delay' = each strip of the screen shows the camera at a different delay
+    warpDone: false,
+    delayFrames: 60,    // total delay across the screen in Delay style (captured frames @30fps)
     speed: 1,           // pixels per 60fps-frame
     slit: 0.5,          // slit position within the source frame (0..1)
     paused: false,
@@ -325,8 +333,94 @@
     }
   }
 
+  // ----- Live-view helpers (Warp / Delay): video is "cover"-fitted to a W×H target -----
+  function cover(W, H) {
+    const vw = vid.videoWidth, vh = vid.videoHeight;
+    const s = Math.max(W / vw, H / vh), sw = W / s, sh = H / s;
+    return { sx: (vw - sw) / 2, sy: (vh - sh) / 2, sw, sh };
+  }
+
+  // Draw the live camera into the output, only within [a, b) along the scan axis.
+  function drawLive(a, b) {
+    if (b <= a) return;
+    const W = out.width, H = out.height, k = cover(W, H), m = mirrored();
+    ctx.save();
+    if (state.orient === 'h') {
+      const sx = m ? k.sx + (W - b) * k.sw / W : k.sx + a * k.sw / W;
+      if (m) ctx.setTransform(-1, 0, 0, 1, a + b, 0);
+      ctx.drawImage(vid, sx, k.sy, (b - a) * k.sw / W, k.sh, a, 0, b - a, H);
+    } else {
+      if (m) ctx.setTransform(-1, 0, 0, 1, W, 0);
+      ctx.drawImage(vid, k.sx, k.sy + a * k.sh / H, k.sw, (b - a) * k.sh / H, 0, a, W, b - a);
+    }
+    ctx.restore();
+  }
+
+  function restartWarp() {
+    const len = state.orient === 'h' ? out.width : out.height;
+    state.pos = state.dir > 0 ? 0 : len - 1;
+    state.warpDone = false;
+    state.acc = 0;
+  }
+
+  // Warp: a line travels across the live view; everything behind it stays frozen.
+  function warpFrame(n) {
+    const len = state.orient === 'h' ? out.width : out.height;
+    if (state.warpDone) return;
+    state.pos += n * state.dir;
+    if (state.pos >= len || state.pos < 0) {
+      state.pos = state.pos >= len ? len : -1;
+      state.warpDone = true;
+      toast('Scan complete — tap Clear to scan again');
+      applyUI();
+      return;
+    }
+    if (state.dir > 0) drawLive(Math.floor(state.pos), len);
+    else drawLive(0, Math.floor(state.pos) + 1);
+  }
+
+  // Delay: keep a ring buffer of recent frames; each strip of the screen shows a different age.
+  const DELAY_MAX = 120, DELAY_RES = 512;
+  const delay = { frames: [], head: -1, count: 0, fw: 0, fh: 0, last: 0 };
+  function delayReset() { delay.frames = []; delay.head = -1; delay.count = 0; delay.fw = 0; }
+
+  function delayCapture(now) {
+    if (now - delay.last < 1000 / 30 - 3) return;
+    delay.last = now;
+    const W = out.width, H = out.height, s = DELAY_RES / Math.max(W, H);
+    const fw = Math.round(W * s), fh = Math.round(H * s);
+    if (fw !== delay.fw || fh !== delay.fh) { delayReset(); delay.fw = fw; delay.fh = fh; }
+    delay.head = (delay.head + 1) % DELAY_MAX;
+    let c = delay.frames[delay.head];
+    if (!c) { c = document.createElement('canvas'); c.width = fw; c.height = fh; delay.frames[delay.head] = c; }
+    const cc = c.getContext('2d'), k = cover(fw, fh);
+    cc.save();
+    if (mirrored()) cc.setTransform(-1, 0, 0, 1, fw, 0);
+    cc.drawImage(vid, k.sx, k.sy, k.sw, k.sh, 0, 0, fw, fh);
+    cc.restore();
+    delay.count = Math.min(delay.count + 1, DELAY_MAX);
+  }
+
+  function delayRender() {
+    if (!delay.count) return;
+    const W = out.width, H = out.height, h = state.orient === 'h';
+    const len = h ? W : H, D = Math.min(state.delayFrames, DELAY_MAX);
+    const B = Math.max(1, Math.min(D, len));
+    const fx = delay.fw / W, fy = delay.fh / H;
+    for (let i = 0; i < B; i++) {
+      let a = Math.floor(i * len / B), b = Math.floor((i + 1) * len / B);
+      if (state.dir < 0) { const t = a; a = len - b; b = len - t; }
+      if (b <= a) continue;
+      const age = Math.min(delay.count - 1, B > 1 ? Math.round(i / (B - 1) * (D - 1)) : 0);
+      const f = delay.frames[(delay.head - age + DELAY_MAX) % DELAY_MAX];
+      if (h) ctx.drawImage(f, a * fx, 0, (b - a) * fx, delay.fh, a, 0, b - a, H);
+      else ctx.drawImage(f, 0, a * fy, delay.fw, (b - a) * fy, 0, a, W, b - a);
+    }
+  }
+
   function updateCursor() {
-    if (state.style !== 'sweep' || !state.source) { cursor.style.display = 'none'; return; }
+    const show = state.source && (state.style === 'sweep' || (state.style === 'warp' && !state.warpDone));
+    if (!show) { cursor.style.display = 'none'; return; }
     cursor.style.display = 'block';
     const p = state.pos / state.scale;
     if (state.orient === 'h') {
@@ -340,7 +434,8 @@
 
   function drawPreview() {
     const vw = vid.videoWidth, vh = vid.videoHeight;
-    if (!state.showPreview || !vw) { prev.style.display = 'none'; return; }
+    const live = state.style === 'warp' || state.style === 'delay';
+    if (!state.showPreview || !vw || live) { prev.style.display = 'none'; return; }
     prev.style.display = 'block';
     const pw = 224, ph = Math.round(pw * vh / vw);
     if (prev.width !== pw || prev.height !== ph) { prev.width = pw; prev.height = ph; prev.style.height = (ph / 2) + 'px'; }
@@ -359,11 +454,15 @@
     state.last = now;
     if (!state.source || vid.readyState < 2 || !vid.videoWidth) return;
     drawPreview();
+    let n = 0;
     if (!state.paused) {
       state.acc += state.speed * dt;
-      const n = Math.floor(state.acc);
-      if (n > 0) { state.acc -= n; step(n); }
+      n = Math.floor(state.acc);
+      state.acc -= n;
     }
+    if (state.style === 'warp') warpFrame(n);       // live area keeps updating even when paused
+    else if (state.style === 'delay') { if (!state.paused) { delayCapture(now); delayRender(); } }
+    else if (n > 0) step(n);
     updateCursor();
   }
   requestAnimationFrame(frame);
@@ -386,11 +485,24 @@
     state.orient = o;
     const len = o === 'h' ? out.width : out.height;
     state.pos = state.dir > 0 ? 0 : len - 1;
+    if (state.style === 'warp') restartWarp();
+  }
+  function setDir(d) {
+    if (d === state.dir) return;
+    state.dir = d;
+    if (state.style === 'warp') restartWarp();
+  }
+  function setStyle(s) {
+    if (s === state.style) return;
+    state.style = s;
+    if (s === 'warp') restartWarp();
+    if (s !== 'delay') delayReset();   // free the frame buffer when not needed
+    onSpeed();
   }
 
   seg('orientSeg', setOrient);
-  seg('dirSeg', v => { state.dir = +v; });
-  seg('styleSeg', v => { state.style = v; });
+  seg('dirSeg', v => setDir(+v));
+  seg('styleSeg', setStyle);
 
   function applyUI() {
     const mark = (id, v) => $(id).querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === String(v)));
@@ -403,16 +515,24 @@
     $('pauseBtn').innerHTML = state.paused ? '<b>▶</b>Resume' : '<b>❚❚</b>Pause';
     $('pauseBtn').classList.toggle('on', state.paused);
     $('prevBtn').classList.toggle('on', state.showPreview);
+    const live = state.style === 'warp' || state.style === 'delay';
+    $('slitRow').classList.toggle('off', live);
+    $('prevBtn').disabled = live;
+    $('clearBtn').innerHTML = state.style === 'warp' ? '<b>↺</b>Restart' : '<b>⌫</b>Clear';
     updateCursor();
   }
 
   const speedEl = $('speed');
   function onSpeed() {
     state.speed = sliderToSpeed(+speedEl.value);
-    $('speedVal').textContent = (state.speed < 1 ? state.speed.toFixed(2) : state.speed.toFixed(1)) + ' px';
+    // Delay style: slow = long delay across the screen, fast = short delay
+    state.delayFrames = Math.round(2 + (1 - +speedEl.value / 100) * (DELAY_MAX - 2));
+    $('speedLbl').textContent = state.style === 'delay' ? 'Delay' : 'Speed';
+    $('speedVal').textContent = state.style === 'delay'
+      ? (state.delayFrames / 30).toFixed(1) + ' s'
+      : (state.speed < 1 ? state.speed.toFixed(2) : state.speed.toFixed(1)) + ' px';
   }
   speedEl.addEventListener('input', onSpeed);
-  onSpeed();
 
   const slitEl = $('slit');
   slitEl.addEventListener('input', () => {
@@ -422,6 +542,7 @@
 
   $('pauseBtn').onclick = () => { state.paused = !state.paused; applyUI(); };
   $('clearBtn').onclick = () => {
+    if (state.style === 'warp') { restartWarp(); applyUI(); return; }
     ctx.fillStyle = '#000'; ctx.fillRect(0, 0, out.width, out.height);
     const len = state.orient === 'h' ? out.width : out.height;
     state.pos = state.dir > 0 ? 0 : len - 1;
@@ -446,10 +567,10 @@
   window.addEventListener('keydown', e => {
     if (e.target.tagName === 'INPUT' && e.target.type !== 'range') return;
     const k = e.key;
-    if (k === 'ArrowRight') { setOrient('h'); state.dir = 1; }
-    else if (k === 'ArrowLeft') { setOrient('h'); state.dir = -1; }
-    else if (k === 'ArrowDown') { setOrient('v'); state.dir = 1; }
-    else if (k === 'ArrowUp') { setOrient('v'); state.dir = -1; }
+    if (k === 'ArrowRight') { setOrient('h'); setDir(1); }
+    else if (k === 'ArrowLeft') { setOrient('h'); setDir(-1); }
+    else if (k === 'ArrowDown') { setOrient('v'); setDir(1); }
+    else if (k === 'ArrowUp') { setOrient('v'); setDir(-1); }
     else if (k === ' ') { state.paused = !state.paused; }
     else if (k === 'c' || k === 'C') { $('clearBtn').click(); return; }
     else if (k === 's' || k === 'S') { save(); return; }
@@ -484,6 +605,7 @@
     clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
   }
 
+  onSpeed();
   applyUI();
 })();
 </script>
