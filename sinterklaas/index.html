@@ -31,6 +31,11 @@
   body { margin: 0; min-height: 100vh; color: var(--ink); font: 21px/1.35 var(--serif); background: var(--paperbg); background-attachment: fixed; overflow-x: hidden; }
   button, input { font: inherit; color: inherit; }
   a { color: var(--red); }
+  /* No accidental text selection or long-press menus while dragging pages and strikes;
+     typing fields still allow it. */
+  body { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+  input { -webkit-user-select: text; user-select: text; -webkit-touch-callout: default; }
+  svg, img { -webkit-user-drag: none; user-drag: none; }
 
   /* A sheet = one page of the book */
   .sheet { min-height: 100vh; min-height: 100dvh; background: var(--paperbg); background-attachment: fixed; }
@@ -259,19 +264,22 @@ const store = {
 const Sound = (() => {
   let ctx = null, noiseBuf = null, master = null, muted = store.get('sint-mute') === '1';
   let scratch = null;
-  // Recorded page turns (sounds/page1-4.mp3), played at random; synthesised sound until they load.
-  const samples = []; let lastSample = -1, loading = false;
+  // Recorded sounds (sounds/page1-4.mp3, sounds/write1-6.mp3), played at random;
+  // synthesised sounds until they have loaded.
+  const SETS = { page: 4, write: 6 };
+  const samples = { page: [], write: [] }, last = {}; let loading = false;
   function loadSamples() {
     if (loading || !ctx) return; loading = true;
-    for (let i = 1; i <= 4; i++) {
-      fetch(`sounds/page${i}.mp3`).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => samples.push(buf)).catch(() => {});
+    for (const [name, n] of Object.entries(SETS)) for (let i = 1; i <= n; i++) {
+      fetch(`sounds/${name}${i}.mp3`).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => samples[name].push(buf)).catch(() => {});
     }
   }
-  function playSample(rate = 1, gain = 1) {
-    if (!ctx || !samples.length) return false;
-    let i; do { i = Math.floor(Math.random() * samples.length); } while (samples.length > 1 && i === lastSample);
-    lastSample = i;
-    const src = ctx.createBufferSource(); src.buffer = samples[i];
+  function playSample(rate = 1, gain = 1, set = 'page') {
+    const list = samples[set];
+    if (!ctx || !list.length) return false;
+    let i; do { i = Math.floor(Math.random() * list.length); } while (list.length > 1 && i === last[set]);
+    last[set] = i;
+    const src = ctx.createBufferSource(); src.buffer = list[i];
     src.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
     const g = ctx.createGain(); g.gain.value = gain;
     src.connect(g).connect(master); src.start();
@@ -322,6 +330,7 @@ const Sound = (() => {
     tap() { tone({ freq: 1100, f1: 700, dur: .05, gain: .12 }); },
     // Quill writing a word: a run of short, scratchy strokes.
     write() {
+      if (ac() && playSample(1, 1.3, 'write')) return;
       let t = 0;
       for (let i = 0; i < 10; i++) {
         const d = .035 + Math.random() * .07;
