@@ -133,7 +133,8 @@
   #coverWrap.zoom .under { box-shadow: none; border-radius: 0; }
   #coverWrap.zoom .under::after { opacity: 0; }
   .snap { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
-  .snap .sheet { background-attachment: scroll; }
+  .snap .sheet { background: none; }
+  #coverWrap.gone { opacity: 0; transition: opacity .25s; }
   .cover { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 0 50%; cursor: grab; touch-action: none; }
   .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 4px 12px 12px 4px; }
   .front { overflow: hidden;
@@ -258,6 +259,24 @@ const store = {
 const Sound = (() => {
   let ctx = null, noiseBuf = null, master = null, muted = store.get('sint-mute') === '1';
   let scratch = null;
+  // Recorded page turns (sounds/page1-4.mp3), played at random; synthesised sound until they load.
+  const samples = []; let lastSample = -1, loading = false;
+  function loadSamples() {
+    if (loading || !ctx) return; loading = true;
+    for (let i = 1; i <= 4; i++) {
+      fetch(`sounds/page${i}.mp3`).then(r => r.arrayBuffer()).then(b => ctx.decodeAudioData(b)).then(buf => samples.push(buf)).catch(() => {});
+    }
+  }
+  function playSample(rate = 1, gain = 1) {
+    if (!ctx || !samples.length) return false;
+    let i; do { i = Math.floor(Math.random() * samples.length); } while (samples.length > 1 && i === lastSample);
+    lastSample = i;
+    const src = ctx.createBufferSource(); src.buffer = samples[i];
+    src.playbackRate.value = rate * (0.94 + Math.random() * 0.12);
+    const g = ctx.createGain(); g.gain.value = gain;
+    src.connect(g).connect(master); src.start();
+    return true;
+  }
   function ac() {
     if (!ctx) {
       const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
@@ -267,6 +286,7 @@ const Sound = (() => {
       const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
     }
     if (ctx.state === 'suspended') ctx.resume();
+    loadSamples();
     return ctx;
   }
   function env(g, t, peak, attack, dur) {
@@ -293,8 +313,9 @@ const Sound = (() => {
     unlock: ac,
     get muted() { return muted; },
     toggle() { muted = !muted; store.set('sint-mute', muted ? '1' : '0'); if (master) master.gain.value = muted ? 0 : 1; return muted; },
-    page() { noise({ dur: .45, f0: 600, f1: 2600, q: .6, gain: .22, attack: .12 }); noise({ dur: .14, f0: 2400, f1: 900, q: .9, gain: .16, delay: .36 }); },
-    open() { tone({ freq: 85, f1: 40, dur: .45, gain: .5, attack: .01, delay: .05 }); noise({ dur: .9, f0: 400, f1: 2000, q: .5, gain: .18, attack: .25 }); noise({ dur: .25, f0: 180, f1: 90, q: .7, gain: .35, type: 'lowpass', delay: .02 }); },
+    page() { if (ac() && playSample()) return; noise({ dur: .45, f0: 600, f1: 2600, q: .6, gain: .22, attack: .12 }); noise({ dur: .14, f0: 2400, f1: 900, q: .9, gain: .16, delay: .36 }); },
+    open() { playSample(.82, .9); tone({ freq: 85, f1: 40, dur: .45, gain: .5, attack: .01, delay: .05 }); noise({ dur: .9, f0: 400, f1: 2000, q: .5, gain: .18, attack: .25 }); noise({ dur: .25, f0: 180, f1: 90, q: .7, gain: .35, type: 'lowpass', delay: .02 }); },
+    close() { playSample(.75, .6); tone({ freq: 95, f1: 45, dur: .35, gain: .5, delay: .02 }); noise({ dur: .2, f0: 200, f1: 100, q: .7, gain: .3, type: 'lowpass' }); },
     seal() { tone({ freq: 160, f1: 60, dur: .16, gain: .45 }); noise({ dur: .08, f0: 1200, q: .8, gain: .18 }); },
     strike() { noise({ dur: .28, f0: 2600, f1: 4200, q: 2.5, gain: .2, attack: .02 }); },
     erase() { noise({ dur: .3, f0: 900, f1: 600, q: 1.2, gain: .16, attack: .04 }); },
@@ -428,8 +449,10 @@ function snapshot(sheet) {
   return c;
 }
 
-// Start a curl: snapshot the current page on top, draw the next page underneath.
-// Returns a handle whose setP(point) moves the lifted corner; null if there is nothing to animate.
+// Start a curl. The spine is always the left edge of the screen.
+//  dir > 0 (forward): the current page lifts at its bottom-right corner and turns away to the left.
+//  dir < 0 (back):    the previous page comes back from the left and lands on top of the current one.
+// Returns a handle whose setP(point) moves the curling page's corner; null if there is nothing to animate.
 function startCurl(dir, draw) {
   endCurl();
   const old = $app.querySelector('.sheet');
@@ -437,28 +460,40 @@ function startCurl(dir, draw) {
   const W = innerWidth, H = innerHeight, D = Math.hypot(W, H), sc = scrollY;
 
   const wrap = div('curl');
-  const oldBox = div('old'); oldBox.appendChild(snapshot(old));
-  const oldShadeBox = div('clipbox'), oldShade = div('shade onold'); oldShadeBox.appendChild(oldShade);
-  const flapWrap = div('flapwrap'), flap = div('flap'), bleed = div('bleed'), flapShade = div('shade onflap');
-  bleed.appendChild(snapshot(old)); flap.append(bleed, flapShade); flapWrap.appendChild(flap);
-  wrap.append(oldBox, oldShadeBox, flapWrap);
-  for (const sh of [oldShade, flapShade]) { sh.style.width = 3 * D + 'px'; sh.style.height = D + 'px'; }
-
+  let base = null, pageSnap, pageScroll;
+  if (dir > 0) {
+    pageSnap = () => snapshot(old); pageScroll = sc;           // the current page turns away
+  } else {
+    base = div('old'); base.appendChild(snapshot(old));        // current page stays put underneath
+    wrap.appendChild(base);
+  }
   draw();
   scrollTo(0, 0);
+  if (dir < 0) { const fresh = $app.querySelector('.sheet'); pageSnap = () => snapshot(fresh); pageScroll = 0; }
+
+  const pageBox = div('old'); pageBox.appendChild(pageSnap());
+  const pageShadeBox = div('clipbox'), pageShade = div('shade onold'); pageShadeBox.appendChild(pageShade);
+  const flapWrap = div('flapwrap'), flap = div('flap'), bleed = div('bleed'), flapShade = div('shade onflap');
+  bleed.appendChild(pageSnap()); flap.append(bleed, flapShade); flapWrap.appendChild(flap);
+  wrap.append(pageBox, pageShadeBox, flapWrap);
+  for (const sh of [pageShade, flapShade]) { sh.style.width = 3 * D + 'px'; sh.style.height = D + 'px'; }
   document.body.appendChild(wrap);
-  oldBox.scrollTop = sc; bleed.scrollTop = sc;
+  if (base) base.scrollTop = sc;
+  pageBox.scrollTop = bleed.scrollTop = pageScroll;
 
   const rect = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
-  const C = dir > 0 ? { x: W, y: H } : { x: 0, y: H };          // the corner being lifted
-  const E = dir > 0 ? { x: -W, y: H } : { x: 2 * W, y: H };     // where it ends: page fully turned
-  const spineB = dir > 0 ? { x: 0, y: H } : { x: W, y: H }, spineT = { x: spineB.x, y: 0 };
+  const C = { x: W, y: H };                 // the page's corner when it lies flat
+  const E = { x: -W, y: H };                // the corner when the page is turned over onto the left
+  const spineB = { x: 0, y: H }, spineT = { x: 0, y: 0 };
   const place = (el, M, ang) => { el.style.transform = `translate(${M.x}px,${M.y}px) rotate(${ang}rad) translate(${-1.5 * D}px,0)`; };
 
-  const cs = { el: wrap, raf: 0, W, H, C, E, P: C, sc, dir };
+  const cs = { el: wrap, raf: 0, W, H, C, E, sc, dir,
+    start: dir > 0 ? C : E, end: dir > 0 ? E : C };
+  cs.P = cs.start;
+  cs.progress = P => Math.abs(P.x - cs.start.x) / (2 * W);
   // Keep the paper attached to the spine, like a real page.
   cs.constrain = P => {
-    P = { x: clamp(P.x, -W, 2 * W), y: Math.min(P.y, H) };
+    P = { x: clamp(P.x, -W, W), y: Math.min(P.y, H) };
     for (const [S, R] of [[spineB, W], [spineT, D]]) {
       const dx = P.x - S.x, dy = P.y - S.y, d = Math.hypot(dx, dy);
       if (d > R) P = { x: S.x + dx * R / d, y: S.y + dy * R / d };
@@ -468,22 +503,22 @@ function startCurl(dir, draw) {
   cs.setP = P => {
     cs.P = P;
     const v = { x: C.x - P.x, y: C.y - P.y }, len = Math.hypot(v.x, v.y);
-    if (len < 0.5) { flap.style.clipPath = 'polygon(0 0, 0 0, 0 0)'; oldBox.style.clipPath = oldShadeBox.style.clipPath = ''; return; }
+    if (len < 0.5) { flap.style.clipPath = 'polygon(0 0, 0 0, 0 0)'; pageBox.style.clipPath = pageShadeBox.style.clipPath = ''; return; }
     const M = { x: (C.x + P.x) / 2, y: (C.y + P.y) / 2 };
     const side = p => (p.x - M.x) * v.x + (p.y - M.y) * v.y;     // > 0 on the lifted corner's side
-    oldBox.style.clipPath = oldShadeBox.style.clipPath = polyCss(clipPoly(rect, side));
+    pageBox.style.clipPath = pageShadeBox.style.clipPath = polyCss(clipPoly(rect, side));
     flap.style.clipPath = polyCss(clipPoly(rect, p => -side(p)));
     // Reflect the lifted part across the fold line.
     const dx = -v.y / len, dy = v.x / len;
     const a = dx * dx - dy * dy, b = 2 * dx * dy, d = dy * dy - dx * dx;
     flap.style.transform = `matrix(${a},${b},${b},${d},${M.x - (a * M.x + b * M.y)},${M.y - (b * M.x + d * M.y)})`;
-    // Shading along the fold: on the flap toward the lifted side, on the old page toward the spine.
+    // Shading along the fold: on the flap toward the lifted side, on the page toward the spine.
     const ang = Math.atan2(dy, dx);
     const towardCorner = (-Math.sin(ang)) * v.x + Math.cos(ang) * v.y > 0;
     place(flapShade, M, towardCorner ? ang : ang + Math.PI);
-    place(oldShade, M, towardCorner ? ang + Math.PI : ang);
+    place(pageShade, M, towardCorner ? ang + Math.PI : ang);
   };
-  cs.setP(C);
+  cs.setP(cs.start);
   curlState = cs;
   return cs;
 }
@@ -506,7 +541,7 @@ function turn(dir, draw) {
   const cs = startCurl(dir, draw);
   if (!cs) return;
   Sound.page();
-  animateCurl(cs, cs.C, cs.E, 900, endCurl);
+  animateCurl(cs, cs.start, cs.end, 900, endCurl);
 }
 
 // ---------- Pages of the book ----------
@@ -555,7 +590,10 @@ function attachEar(btn, dir) {
       if (!cs) { start = null; return; }
       lastX = e.clientX; lastT = e.timeStamp;
     }
-    cs.setP(cs.constrain({ x: e.clientX, y: e.clientY }));
+    // Forward: your finger holds the lifting corner. Back: your finger pulls the previous page's
+    // corner over from the left edge, so the corner travels twice as far as the finger.
+    const fx = dir > 0 ? e.clientX : 2 * e.clientX - cs.W;
+    cs.setP(cs.constrain({ x: fx, y: e.clientY }));
     vx = (e.clientX - lastX) / Math.max(1, e.timeStamp - lastT); lastX = e.clientX; lastT = e.timeStamp;
   });
   const end = e => {
@@ -563,14 +601,14 @@ function attachEar(btn, dir) {
     start = null;
     if (!cs) { if (e.type === 'pointerup') { Sound.unlock(); goTo(pageIndex() + dir); } return; }
     const c = cs; cs = null;
-    const progress = dir > 0 ? (c.C.x - c.P.x) / (2 * c.W) : (c.P.x - c.C.x) / (2 * c.W);
+    const progress = c.progress(c.P);
     const moving = e.timeStamp - lastT < 90;           // still moving when let go = a flick
     const flick = moving && progress > .08 && (dir > 0 ? vx < -0.5 : vx > 0.5);
     if (progress > .3 || flick) {
       Sound.page();
-      animateCurl(c, c.P, c.E, 520, endCurl);
+      animateCurl(c, c.P, c.end, 520, endCurl);
     } else {
-      animateCurl(c, c.P, c.C, 280, () => {          // let go too early: the page falls back
+      animateCurl(c, c.P, c.start, 280, () => {      // let go too early: the page falls back
         tab = saved.tab; viewing = saved.viewing; editing = saved.editing;
         render(); scrollTo(0, c.sc); endCurl();
       });
@@ -598,22 +636,24 @@ const MITRE = `<svg class="mitre" viewBox="0 0 100 120" aria-hidden="true">
 
 // The closed book. Drag the cover open (at your own speed) or tap it; then we zoom into the
 // first page, which is a snapshot of the real page waiting underneath.
-function showCover(behind) {
-  behind();
+function showCover(behind, closing = false) {
+  if (!closing) behind();                       // when closing, the current page goes into the book first
   muteBtn.style.display = 'none';
   const W = innerWidth, H = innerHeight;
-  // The book is at least as tall (relative to its width) as the screen, so that
-  // zooming into its first page ends up covering the whole screen exactly.
-  const r = Math.max(4.15 / 3, H / W);
+  const r = 4.15 / 3;                                   // book proportions
   const bw = Math.min(W * .82, 400, H * .86 / r), bh = bw * r;
-  const bx = (W - bw) / 2, by = (H - bh) / 2, s = bw / W;
+  const bx = (W - bw) / 2, by = (H - bh) / 2;
+  // Zoom until the page covers the screen. The real page sits inside the book where
+  // the screen will be once zoomed in, so the hand-over is seamless.
+  const k = Math.max(W / bw, H / bh);
+  const offX = (W - bw * k) / 2, offY = (H - bh * k) / 2;
   const wrap = document.createElement('div');
   wrap.id = 'coverWrap';
   wrap.innerHTML = `
     <div class="backdrop"></div>
     <div class="stage">
       <div class="book" style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px">
-        <div class="under"><div class="snap" style="width:${W}px;height:${H}px;transform:scale(${s})"></div></div>
+        <div class="under"><div class="snap" style="left:${-offX / k}px;top:${-offY / k}px;width:${W}px;height:${H}px;transform:scale(${1 / k})"></div></div>
         <div class="cover" role="button" aria-label="Open het boek" tabindex="0">
           <div class="pages"></div>
           <div class="face front">
@@ -643,11 +683,14 @@ function showCover(behind) {
     cover.style.transition = ms ? `transform ${ms}ms cubic-bezier(.35, .1, .3, 1)` : 'none';
     cover.style.transform = `rotateY(${a}deg)`;
   };
+  const zoomed = `translate(${offX - bx * k}px, ${offY - by * k}px) scale(${k})`;
   const zoom = () => {
-    const k = W / bw;
-    stage.style.transform = `translate(${-bx * k}px, ${-by * k}px) scale(${k})`;
+    stage.style.transform = zoomed;
     wrap.classList.add('zoom');
-    setTimeout(() => { wrap.remove(); muteBtn.style.display = 'block'; }, reduceMotion ? 30 : 950);
+    setTimeout(() => {
+      wrap.classList.add('gone');                     // soft hand-over to the real page
+      setTimeout(() => { wrap.remove(); muteBtn.style.display = 'block'; }, 260);
+    }, reduceMotion ? 30 : 920);
   };
   const finish = () => {
     if (done) return; done = true;
@@ -685,6 +728,29 @@ function showCover(behind) {
   cover.addEventListener('pointerup', end);
   cover.addEventListener('pointercancel', end);
   cover.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') finish(); });
+
+  if (closing) {
+    // Start zoomed in on the open book (looks exactly like the page), zoom out, then shut the cover.
+    const backdrop = wrap.querySelector('.backdrop');
+    done = true;
+    stage.style.transition = backdrop.style.transition = 'none';
+    stage.style.transform = zoomed; wrap.classList.add('zoom'); setAngle(OPEN);
+    void wrap.offsetWidth;
+    stage.style.transition = ''; backdrop.style.transition = 'opacity .5s ease';
+    wrap.classList.remove('zoom'); stage.style.transform = '';
+    Sound.unlock(); Sound.rustle();
+    setTimeout(() => {
+      setAngle(0, reduceMotion ? 10 : 850);
+      setTimeout(() => {
+        Sound.close();
+        behind();                                 // the names page, ready for the next reader
+        const snap = wrap.querySelector('.snap'), sh = $app.querySelector('.sheet');
+        snap.textContent = ''; if (sh) snap.appendChild(snapshot(sh));
+        backdrop.style.transition = '';
+        done = false;
+      }, reduceMotion ? 20 : 780);
+    }, reduceMotion ? 20 : 850);
+  }
 }
 
 // ---------- Names + PIN ----------
@@ -758,7 +824,7 @@ function logout() {
   subs.forEach(u => u()); subs = [];
   me = null; items = {}; claims = {}; viewing = null; editing = null; tab = 'mine';
   store.del('sint-me');
-  turn(-1, () => drawNames());
+  showCover(() => drawNames(), true);           // close the book
 }
 
 // ---------- Main views ----------
