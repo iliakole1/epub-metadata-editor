@@ -198,12 +198,15 @@
   @keyframes rise { from { opacity: 0; transform: translateY(22px); } to { opacity: 1; transform: none; } }
   @keyframes writeIn { from { clip-path: inset(-20% 100% -20% 0); } to { clip-path: inset(-20% 0 -20% 0); } }
   @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-  form.add#addForm { margin-top: 14px; }
+  form.add.addform { margin-top: 14px; }
   .writeline { display: flex; align-items: flex-end; gap: 12px; }
   .writeline .seal { flex: none; width: 50px; height: 50px; font-size: 27px; }
 
-  #mute { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 45; width: 38px; height: 38px; border-radius: 50%;
-    border: 1px solid var(--rule); background: rgba(241, 226, 192, .8); cursor: pointer; font-size: 17px; display: none; }
+  #mute { position: absolute; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 45; width: 40px; height: 40px; border-radius: 50%;
+    border: 1.5px solid #c9a24e; background: radial-gradient(circle at 40% 35%, #fbf3df, #ead7ad); cursor: pointer; padding: 0;
+    box-shadow: 0 1px 3px rgba(60, 30, 0, .25), inset 0 0 0 2px rgba(255, 255, 255, .35); display: none; place-items: center; }
+  #mute svg { display: block; margin: auto; }
+  #mute:active { transform: scale(.92); }
 
   #toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--ink); color: var(--paper); padding: 8px 18px; border-radius: 4px; font-style: italic; font-size: 17px;
@@ -217,7 +220,7 @@
 </head>
 <body>
 <div id="app"></div>
-<button id="mute" aria-label="Geluid aan/uit">🔊</button>
+<button id="mute" aria-label="Geluid aan/uit"></button>
 <button id="prevEar" class="dogear prev" aria-label="Vorige bladzijde"></button>
 <button id="nextEar" class="dogear next" aria-label="Volgende bladzijde"></button>
 <div id="toast"></div>
@@ -394,7 +397,22 @@ const Sound = (() => {
   };
 })();
 const muteBtn = document.getElementById('mute');
-const syncMute = () => { muteBtn.textContent = Sound.muted ? '🔇' : '🔊'; };
+// A little gold bell; when sound is off it's dimmed and struck through in red ink.
+const BELL = muted => `<svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true">
+  <defs><linearGradient id="bell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7dd8c"/><stop offset=".55" stop-color="#d4a03c"/><stop offset="1" stop-color="#9c6c1c"/></linearGradient></defs>
+  <g opacity="${muted ? .45 : 1}">
+    <path d="M12 3.2 C8.4 3.2 6.6 6 6.6 9.6 L6.6 13.6 C6.6 15.2 5.4 16.2 4.4 17 L19.6 17 C18.6 16.2 17.4 15.2 17.4 13.6 L17.4 9.6 C17.4 6 15.6 3.2 12 3.2 Z" fill="url(#bell)" stroke="#7a4f12" stroke-width="1" stroke-linejoin="round"/>
+    <circle cx="12" cy="2.6" r="1.4" fill="#d4a03c" stroke="#7a4f12" stroke-width=".8"/>
+    <circle cx="12" cy="19.2" r="1.9" fill="#b07c22" stroke="#7a4f12" stroke-width=".8"/>
+    <path d="M9 7.5 C9.4 6 10.4 5.2 11.4 5" stroke="#fff6d8" stroke-width="1.1" stroke-linecap="round" fill="none" opacity=".8"/>
+    ${muted ? '' : '<path d="M20.4 6.4 C21.6 7.8 21.8 10 20.8 11.6 M3.6 6.4 C2.4 7.8 2.2 10 3.2 11.6" stroke="#b07c22" stroke-width="1.2" stroke-linecap="round" fill="none"/>'}
+  </g>
+  ${muted ? '<path d="M4 20.5 C 9 14, 14 9, 20.5 3.8" stroke="#8e1b14" stroke-width="2.2" stroke-linecap="round" fill="none"/>' : ''}
+</svg>`;
+const syncMute = () => {
+  muteBtn.innerHTML = BELL(Sound.muted);
+  muteBtn.setAttribute('aria-label', Sound.muted ? 'Geluid aanzetten' : 'Geluid uitzetten');
+};
 muteBtn.onclick = () => { Sound.toggle(); syncMute(); };
 syncMute();
 
@@ -467,9 +485,10 @@ function subscribe() {
 // The old page is snapshotted on top; its corner is lifted and folded over
 // (a reflection across the fold line), revealing the new page underneath.
 let curlState = null;
+let riffles = [];                                // extra overlapping curls while riffling through pages
 function endCurl() {
-  if (!curlState) return;
-  cancelAnimationFrame(curlState.raf); curlState.el.remove(); curlState = null;
+  for (const c of [curlState, ...riffles]) { if (!c) continue; c.dead = true; cancelAnimationFrame(c.raf); c.el.remove(); }
+  curlState = null; riffles = [];
 }
 function clipPoly(pts, f) {                      // keep points where f(p) <= 0 (Sutherland–Hodgman)
   const out = [];
@@ -484,8 +503,9 @@ const polyCss = pts => pts.length < 3 ? 'polygon(0 0, 0 0, 0 0)' : 'polygon(' + 
 const div = cls => { const d = document.createElement('div'); d.className = cls; return d; };
 function snapshot(sheet) {
   const c = sheet.cloneNode(true);
-  c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-  c.querySelectorAll('form.add').forEach(e => e.classList.remove('add'));
+  // Drop element ids (the live page owns them) but keep ids inside SVGs: the ornaments'
+  // gradients are referenced by id, and without them the drawings lose their colour.
+  c.querySelectorAll('[id]').forEach(e => { if (!e.closest('svg')) e.removeAttribute('id'); });
   c.setAttribute('inert', '');
   return c;
 }
@@ -494,8 +514,8 @@ function snapshot(sheet) {
 //  dir > 0 (forward): the current page lifts at its bottom-right corner and turns away to the left.
 //  dir < 0 (back):    the previous page comes back from the left and lands on top of the current one.
 // Returns a handle whose setP(point) moves the curling page's corner; null if there is nothing to animate.
-function startCurl(dir, draw) {
-  endCurl();
+function startCurl(dir, draw, opts = {}) {
+  if (!opts.keep) endCurl();
   const old = $app.querySelector('.sheet');
   if (!old || reduceMotion) { draw(); scrollTo(0, 0); Sound.page(); return null; }
   const W = innerWidth, H = innerHeight, D = Math.hypot(W, H), sc = scrollY;
@@ -504,10 +524,11 @@ function startCurl(dir, draw) {
   let base = null, pageSnap, pageScroll;
   if (dir > 0) {
     pageSnap = () => snapshot(old); pageScroll = sc;           // the current page turns away
-  } else {
+  } else if (!opts.noBase) {
     base = div('old'); base.appendChild(snapshot(old));        // current page stays put underneath
     wrap.appendChild(base);
   }
+  if (opts.z) wrap.style.zIndex = opts.z;
   draw();
   scrollTo(0, 0);
   if (dir < 0) { const fresh = $app.querySelector('.sheet'); pageSnap = () => snapshot(fresh); pageScroll = 0; }
@@ -519,8 +540,8 @@ function startCurl(dir, draw) {
   wrap.append(pageBox, pageShadeBox, flapWrap);
   for (const sh of [pageShade, flapShade]) { sh.style.width = 3 * D + 'px'; sh.style.height = D + 'px'; }
   document.body.appendChild(wrap);
-  if (base) base.scrollTop = sc;
-  pageBox.scrollTop = bleed.scrollTop = pageScroll;
+  const shift = (box, y) => { if (box && box.firstChild) box.firstChild.style.transform = `translateY(${-y}px)`; };
+  shift(base, sc); shift(pageBox, pageScroll); shift(bleed, pageScroll);
 
   const rect = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
   const C = { x: W, y: H };                 // the page's corner when it lies flat
@@ -544,7 +565,10 @@ function startCurl(dir, draw) {
   cs.setP = P => {
     cs.P = P;
     const v = { x: C.x - P.x, y: C.y - P.y }, len = Math.hypot(v.x, v.y);
-    if (len < 0.5) { flap.style.clipPath = 'polygon(0 0, 0 0, 0 0)'; pageBox.style.clipPath = pageShadeBox.style.clipPath = ''; return; }
+    if (len < 0.5) {                                   // not folding yet: whole page, no fold or shadows
+      flap.style.clipPath = pageShadeBox.style.clipPath = 'polygon(0 0, 0 0, 0 0)';
+      pageBox.style.clipPath = ''; return;
+    }
     const M = { x: (C.x + P.x) / 2, y: (C.y + P.y) / 2 };
     const side = p => (p.x - M.x) * v.x + (p.y - M.y) * v.y;     // > 0 on the lifted corner's side
     pageBox.style.clipPath = pageShadeBox.style.clipPath = polyCss(clipPoly(rect, side));
@@ -560,7 +584,7 @@ function startCurl(dir, draw) {
     place(pageShade, M, towardCorner ? ang + Math.PI : ang);
   };
   cs.setP(cs.start);
-  curlState = cs;
+  if (opts.keep) riffles.push(cs); else curlState = cs;
   return cs;
 }
 
@@ -569,7 +593,7 @@ function animateCurl(cs, from, to, dur, done) {
   cancelAnimationFrame(cs.raf);
   const t0 = performance.now(), lift = Math.abs(to.x - from.x) / (2 * cs.W) * cs.H * 0.22;
   const frame = now => {
-    if (curlState !== cs) return;
+    if (cs.dead) return;
     const t = Math.min(1, (now - t0) / dur);
     const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
     cs.setP({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e - Math.sin(Math.PI * e) * lift });
@@ -598,7 +622,28 @@ function setPage(i) { const p = pageList()[i]; tab = p.tab; viewing = p.viewing;
 function goTo(i) {
   const cur = pageIndex();
   if (i === cur || i < 0 || i >= pageList().length) return;
+  if (Math.abs(i - cur) > 1 && !reduceMotion) return riffle(cur, i);
   turn(i > cur ? 1 : -1, () => { setPage(i); render(); });
+}
+
+// Jumping several pages: a quick flicker of overlapping page turns, the last one settling.
+function riffle(cur, target) {
+  endCurl();
+  const dir = target > cur ? 1 : -1, steps = Math.abs(target - cur), n = Math.min(steps, 5);
+  let k = 0;
+  const next = () => {
+    k++;
+    const idx = k === n ? target : cur + dir * Math.round(k * steps / n);
+    // Forward: each next page lies under the one before it. Back: each next page lands on top.
+    const cs = startCurl(dir, () => { setPage(idx); render(); },
+      { keep: true, z: dir > 0 ? 40 - k : 40 + k, noBase: dir < 0 && k > 1 });
+    if (!cs) return;
+    Sound.page();
+    const last = k === n;
+    animateCurl(cs, cs.start, cs.end, last ? 650 : 330, () => { if (last) endCurl(); });
+    if (!last) setTimeout(next, 120);
+  };
+  next();
 }
 const goToPage = (t, v = null) => goTo(pageList().findIndex(p => p.tab === t && p.viewing === v));
 
@@ -882,7 +927,7 @@ function render() {
   const keepFocus = active && active.closest && active.closest('form.add') ? active.id : null;
   // Keep whatever is typed in a form when live updates re-render the page.
   const draftKey = i => (i.closest('form').dataset.id || '') + '|' + i.id;
-  const drafts = Object.fromEntries([...document.querySelectorAll('form.add input')].map(i => [draftKey(i), i.value]));
+  const drafts = Object.fromEntries([...$app.querySelectorAll('form.add input')].map(i => [draftKey(i), i.value]));
 
   const tabBtn = (t, label) => `<button data-tab="${t}" class="${tab === t ? 'on' : ''}">${label}</button>`;
   $app.innerHTML = `
@@ -897,7 +942,7 @@ function render() {
     </div></div>`;
   updateEars();
 
-  document.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
+  $app.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el) el.focus({ preventScroll: true }); }
   bind();
   if (scrollToForm) {                 // keep the writing line in view, like a chat
@@ -943,7 +988,7 @@ function viewMine() {
   }).join('');
   return `
     ${html}
-    <form class="add" id="addForm">
+    <form class="add addform" id="addForm">
       <div class="writeline">
         <input class="line" id="fTitle" placeholder="Ik wens…" maxlength="200" required enterkeyhint="send">
         <button class="seal" type="submit" aria-label="Toevoegen">+</button>
