@@ -66,8 +66,8 @@
   .who { text-align: center; font-style: italic; color: var(--ink-soft); font-size: 17px; }
   .who button { background: none; border: 0; padding: 0; color: var(--ink-soft); text-decoration: underline; cursor: pointer; font-style: italic; }
 
-  nav { display: flex; justify-content: center; align-items: center; gap: 4px; margin: 14px 0 18px; font-size: clamp(15px, 4.7vw, 19px); white-space: nowrap; }
-  nav button { background: none; border: 0; padding: 4px 5px; cursor: pointer; color: var(--ink-soft); font-variant: small-caps; letter-spacing: .03em; }
+  nav { display: flex; justify-content: center; align-items: center; gap: 4px; margin: 14px 0 18px; font-size: clamp(12px, 4vw, 19px); white-space: nowrap; }
+  nav button { background: none; border: 0; padding: 4px 3px; cursor: pointer; color: var(--ink-soft); font-variant: small-caps; letter-spacing: .03em; }
   nav button.on { color: var(--red); border-bottom: 1.5px solid var(--red); }
   nav .dot { color: var(--gold); font-size: 13px; }
 
@@ -939,7 +939,7 @@ function render() {
       <div class="title"><h1>${TITLE}</h1></div>
       <div class="orn">${ORNAMENTS[Math.max(0, pageIndex()) % ORNAMENTS.length]}</div>
       <div class="who">${esc(me.name)} · <button id="logout">uitloggen</button></div>
-      <nav>${tabBtn('mine', 'mijn wensen')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'winkellijstje')}</nav>
+      <nav>${tabBtn('mine', 'mijn verlanglijstje')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'winkellijstje')}</nav>
       ${db.demo ? `<div class="demo">demo — niet gedeeld</div>` : ''}
       ${tab === 'mine' ? viewMine() : tab === 'everyone' ? (viewing ? viewPerson(viewing) : viewEveryone()) : viewBuying()}
       <div class="folio">— ${pageIndex() + 1} —</div>
@@ -990,7 +990,7 @@ function viewMine() {
         <button class="quiet" data-del="${id}" aria-label="Verwijderen">✕</button>
       </div>`;
   }).join('');
-  return html + writeForm(me.key, 'Ik wens…');
+  return html + writeForm(me.key, 'Ik wil…');
 }
 
 // The writing line at the bottom of a list (your own, or a little one's for their parents).
@@ -1057,7 +1057,7 @@ function viewPerson(key) {
     <h2>${esc(nameOf(key))}</h2>
     ${canWrite(key)
       ? list.map(([id, it]) => editing === id ? editEntry(id, it, key) : personEntry(key, id, it, true)).join('')
-        + writeForm(key, `${nameOf(key)} wenst…`)
+        + writeForm(key, `${nameOf(key)} wil…`)
       : list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nog niets</div>`}`;
 }
 
