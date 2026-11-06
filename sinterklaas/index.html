@@ -3,109 +3,103 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#a3122a">
+<meta name="theme-color" content="#f1e2c0">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Sinterklaas Lists</title>
+<title>Het Boek van Sinterklaas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
   :root {
-    --red: #a3122a;
-    --red-dark: #7c0c1f;
-    --gold: #e3a93b;
-    --bg: #fbf6ee;
-    --card: #ffffff;
-    --text: #2a1a14;
-    --muted: #7d6a60;
-    --line: #eadfd1;
-    --ok: #2f7d4a;
-    --ok-bg: #e6f3ea;
+    --paper: #f1e2c0;
+    --paper-dark: #d9c08f;
+    --ink: #3b2414;
+    --ink-soft: #7a5c40;
+    --red: #8e1b14;
+    --gold: #b8862e;
+    --rule: rgba(80, 50, 20, .22);
+    --script: "Pinyon Script", "Snell Roundhand", "Apple Chancery", cursive;
+    --serif: "IM Fell English", "Iowan Old Style", Georgia, serif;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; background: var(--bg); color: var(--text);
-    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  html { background: var(--paper); }
+  body {
+    margin: 0; min-height: 100vh; color: var(--ink);
+    font: 19px/1.35 var(--serif);
+    background:
+      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .08 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
+      radial-gradient(ellipse at 50% 40%, #f6ead0 0%, var(--paper) 55%, var(--paper-dark) 100%);
+    background-attachment: fixed;
+  }
   button, input { font: inherit; color: inherit; }
   a { color: var(--red); }
 
-  header {
-    position: sticky; top: 0; z-index: 5;
-    background: linear-gradient(135deg, var(--red), var(--red-dark));
-    color: #fff; padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
-    box-shadow: 0 2px 10px rgba(80, 0, 10, .25);
+  .page { max-width: 600px; margin: 0 auto; padding: calc(18px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom)); }
+
+  /* Title block */
+  .title { text-align: center; margin-bottom: 4px; }
+  .title h1 { font: 400 36px/1.05 var(--script); color: var(--red); margin: 0; }
+  .orn { text-align: center; color: var(--gold); letter-spacing: .4em; font-size: 15px; margin: 2px 0 6px; }
+  .who { text-align: center; font-style: italic; color: var(--ink-soft); font-size: 15px; }
+  .who button { background: none; border: 0; padding: 0; color: var(--ink-soft); text-decoration: underline; cursor: pointer; font-style: italic; }
+
+  nav { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 14px 0 18px; font-size: 17px; }
+  nav button { background: none; border: 0; padding: 4px 6px; cursor: pointer; color: var(--ink-soft); font-variant: small-caps; letter-spacing: .04em; }
+  nav button.on { color: var(--red); border-bottom: 1.5px solid var(--red); }
+  nav .dot { color: var(--gold); font-size: 13px; }
+
+  h2 { font: 400 40px/1.1 var(--script); color: var(--ink); text-align: center; margin: 6px 0 10px; }
+  h3 { font: 400 32px/1.1 var(--script); color: var(--ink); margin: 22px 0 4px; }
+  .demo { text-align: center; font-style: italic; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
+
+  /* Entries written on ruled lines */
+  .entry { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px dashed var(--rule); }
+  .entry .body { flex: 1; min-width: 0; }
+  .entry .what { word-wrap: break-word; }
+  .entry .meta { font-size: 15px; font-style: italic; color: var(--ink-soft); display: flex; gap: 10px; flex-wrap: wrap; }
+  .entry .meta a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
+  .struck .what, .struck .meta > span {
+    text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: var(--ink-soft);
   }
-  .hrow { display: flex; align-items: center; gap: 10px; max-width: 640px; margin: 0 auto; }
-  header h1 { margin: 0; font-size: 20px; flex: 1; letter-spacing: -.01em; }
-  header h1 span { color: var(--gold); }
-  .who { font-size: 13px; opacity: .9; text-align: right; }
-  .who button { background: none; border: 0; color: #fff; text-decoration: underline; padding: 0; cursor: pointer; font-size: 13px; opacity: .85; }
+  .by { font: 400 24px/1 var(--script); color: var(--red); white-space: nowrap; }
 
-  nav { display: flex; gap: 6px; max-width: 640px; margin: 10px auto 0; }
-  nav button {
-    flex: 1; border: 0; border-radius: 10px; padding: 9px 4px; cursor: pointer;
-    background: rgba(255,255,255,.14); color: #fff; font-weight: 600; font-size: 14px;
-  }
-  nav button.on { background: #fff; color: var(--red); }
+  /* Ink checkbox */
+  .box { width: 30px; height: 30px; flex: none; border: 1.5px solid var(--ink); border-radius: 3px; background: transparent;
+    cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--red); font: 26px/1 var(--script); }
+  .box:disabled { cursor: default; border-color: var(--ink-soft); }
 
-  main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
+  .quiet { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-size: 18px; padding: 4px 6px; }
 
-  .banner { background: #fff4d6; border: 1px solid #f0d78f; color: #6b4e00; border-radius: 12px;
-    padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
-  .note { color: var(--muted); font-size: 14px; margin: 4px 0 14px; }
-  h2 { font-size: 18px; margin: 4px 0 10px; }
+  /* Writing lines (forms) */
+  form.add { display: grid; gap: 6px; margin-bottom: 10px; }
+  .line { width: 100%; border: 0; border-bottom: 1.5px solid var(--ink-soft); background: transparent; padding: 8px 2px; outline: none; }
+  .line::placeholder { color: var(--ink-soft); opacity: .6; font-style: italic; }
+  .line:focus { border-bottom-color: var(--red); }
+  .two { display: grid; grid-template-columns: 1fr 100px; gap: 12px; }
+  .formrow { display: flex; justify-content: flex-end; gap: 10px; align-items: center; margin-top: 6px; }
+  .seal { width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; color: #f5d9a8; font: 30px/1 var(--serif);
+    background: radial-gradient(circle at 35% 30%, #c0392b, #7d1410 70%); box-shadow: 0 2px 5px rgba(60, 10, 0, .4), inset 0 0 0 4px rgba(0,0,0,.12); }
+  .textbtn { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-style: italic; text-decoration: underline; }
 
-  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
-  .item { display: flex; gap: 12px; align-items: flex-start; }
-  .item .body { flex: 1; min-width: 0; }
-  .item .title { font-weight: 600; word-wrap: break-word; }
-  .item .meta { font-size: 14px; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
-  .item .meta a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
-  .item.claimed .title { color: var(--muted); }
-  .actions { display: flex; gap: 6px; flex: none; }
-
-  .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 14px; }
-  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
-  .btn.gold { background: var(--gold); border-color: var(--gold); color: #3a2400; font-weight: 600; }
-  .btn.small { padding: 6px 10px; font-size: 13px; }
-  .btn:disabled { opacity: .5; cursor: default; }
-  .iconbtn { border: 0; background: none; padding: 6px; cursor: pointer; font-size: 17px; color: var(--muted); border-radius: 8px; }
-
-  .claimtag { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
-    color: var(--ok); background: var(--ok-bg); padding: 5px 9px; border-radius: 8px; white-space: nowrap; }
-  .claimtag.mine { color: #fff; background: var(--ok); }
-
-  form.add { display: grid; gap: 8px; }
-  .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; background: #fff; }
-  .field:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
-  .two { display: grid; grid-template-columns: 1fr 120px; gap: 8px; }
-
-  .person { display: flex; align-items: center; gap: 12px; cursor: pointer; }
-  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--red); color: #fff;
-    display: grid; place-items: center; font-weight: 700; flex: none; }
-  .person .body { flex: 1; }
-  .person .sub { font-size: 13px; color: var(--muted); }
-  .chev { color: var(--muted); font-size: 20px; }
-  .back { background: none; border: 0; color: var(--red); padding: 0; cursor: pointer; font-weight: 600; margin-bottom: 10px; }
-  .empty { text-align: center; color: var(--muted); padding: 24px 10px; }
-  .total { text-align: right; font-weight: 700; margin-top: 6px; }
+  .person { display: flex; align-items: baseline; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--rule); cursor: pointer; }
+  .person .name { font: 400 34px/1.15 var(--script); flex: 1; }
+  .person .count { font-style: italic; color: var(--ink-soft); font-size: 15px; }
+  .back { background: none; border: 0; padding: 0; cursor: pointer; color: var(--red); font-style: italic; }
+  .empty { text-align: center; font-style: italic; color: var(--ink-soft); padding: 22px 0; }
+  .total { text-align: right; font-style: italic; margin-top: 14px; }
 
   /* Login */
-  .login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
-    justify-content: center; padding: 24px 16px; text-align: center;
-    background: radial-gradient(ellipse at 50% 0%, #c4223b 0%, var(--red-dark) 70%); color: #fff; }
-  .login .logo { font-size: 56px; }
-  .login h1 { margin: 6px 0 4px; font-size: 28px; }
-  .login p { margin: 0 0 18px; opacity: .85; }
-  .names { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; max-width: 440px; }
-  .names button { border: 0; border-radius: 12px; padding: 14px 10px; background: #fff; color: var(--red); font-weight: 700; cursor: pointer; }
-  .pinbox { width: 100%; max-width: 320px; background: #fff; color: var(--text); border-radius: 16px; padding: 20px; }
-  .pinbox h2 { margin: 0 0 4px; }
-  .pinbox p { color: var(--muted); opacity: 1; margin-bottom: 14px; font-size: 14px; }
-  .pin { letter-spacing: .5em; text-align: center; font-size: 24px; }
-  .err { color: #c0142f; font-size: 14px; min-height: 20px; margin: 8px 0 0; }
-  .pinbox .row { display: flex; gap: 8px; margin-top: 12px; }
-  .pinbox .row .btn { flex: 1; padding: 11px; }
+  .login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; text-align: center; }
+  .login h1 { font: 400 54px/1 var(--script); color: var(--red); margin: 0; }
+  .names { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; width: 100%; max-width: 380px; margin-top: 10px; }
+  .names button { background: none; border: 0; border-bottom: 1px dashed var(--rule); padding: 8px 0; cursor: pointer; font: 400 34px/1.2 var(--script); color: var(--ink); }
+  .pin { width: 200px; text-align: center; letter-spacing: .5em; font-size: 26px; margin-top: 10px; }
+  .err { color: var(--red); font-style: italic; min-height: 24px; margin: 8px 0 0; font-size: 16px; }
+  .login .formrow { justify-content: center; gap: 22px; }
 
-  #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
-    background: #2a1a14; color: #fff; padding: 10px 16px; border-radius: 22px; font-size: 14px;
+  #toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: var(--ink); color: var(--paper); padding: 8px 18px; border-radius: 4px; font-style: italic; font-size: 16px;
     opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; max-width: 90vw; }
   #toast.show { opacity: 1; }
 </style>
@@ -222,38 +216,38 @@ function logout() {
 }
 
 // ---------- Login ----------
+const TITLE = 'Het Boek van Sinterklaas';
+
 function renderLogin(err = '') {
   $app.innerHTML = `
     <div class="login">
-      <div class="logo">🎁</div>
-      <h1>Sinterklaas Lists</h1>
-      <p>Who are you?</p>
+      <h1>${TITLE}</h1>
+      <div class="orn">❦ ❦ ❦</div>
       <div class="names">${people.map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
-      ${db && db.demo ? `<p style="margin-top:22px;font-size:13px">Demo mode — not connected to the shared database yet.</p>` : ''}
-      <p class="err" style="color:#ffd5d5">${esc(err)}</p>
+      ${db && db.demo ? `<p class="demo" style="margin-top:18px">demo — not shared yet</p>` : ''}
+      <p class="err">${esc(err)}</p>
     </div>`;
   $app.querySelectorAll('[data-person]').forEach(b => b.onclick = () => renderPin(b.dataset.person));
 }
 
 async function renderPin(key) {
   const name = nameOf(key);
-  $app.innerHTML = `<div class="login"><div class="logo">🎁</div><div class="pinbox"><h2>${esc(name)}</h2><p>Loading…</p></div></div>`;
+  $app.innerHTML = `<div class="login"><h1>${esc(name)}</h1></div>`;
   let existing;
   try { existing = await db.get('people/' + key + '/pinHash'); }
-  catch (e) { renderLogin('Could not reach the database: ' + e.message); return; }
+  catch (e) { renderLogin('No connection: ' + e.message); return; }
   const isNew = !existing;
   $app.innerHTML = `
     <div class="login">
-      <div class="logo">🎁</div>
-      <form class="pinbox" autocomplete="off">
-        <h2>Hi ${esc(name)}!</h2>
-        <p>${isNew ? 'First time here — choose a PIN (4–8 digits). You’ll need it every time you log in on a new device.' : 'Enter your PIN.'}</p>
-        <input class="field pin" id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="PIN" autofocus>
-        ${isNew ? `<input class="field pin" id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Repeat PIN" style="margin-top:8px">` : ''}
+      <form autocomplete="off">
+        <h1>${esc(name)}</h1>
+        <div class="orn">❦</div>
+        <input class="line pin" id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="${isNew ? 'new PIN' : 'PIN'}" autofocus>
+        ${isNew ? `<br><input class="line pin" id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="again">` : ''}
         <p class="err" id="err"></p>
-        <div class="row">
-          <button type="button" class="btn" id="back">Back</button>
-          <button type="submit" class="btn primary">${isNew ? 'Set PIN' : 'Log in'}</button>
+        <div class="formrow">
+          <button type="button" class="textbtn" id="back">back</button>
+          <button type="submit" class="seal" aria-label="Enter">✓</button>
         </div>
       </form>
     </div>`;
@@ -262,15 +256,15 @@ async function renderPin(key) {
   $app.querySelector('form').onsubmit = async e => {
     e.preventDefault();
     const pin = document.getElementById('pin1').value.trim();
-    if (!/^\d{4,8}$/.test(pin)) { errEl.textContent = 'Use 4 to 8 digits.'; return; }
+    if (!/^\d{4,8}$/.test(pin)) { errEl.textContent = '4–8 digits'; return; }
     const h = await hashPin(key, pin);
     if (isNew) {
-      if (document.getElementById('pin2').value.trim() !== pin) { errEl.textContent = 'The PINs don’t match.'; return; }
+      if (document.getElementById('pin2').value.trim() !== pin) { errEl.textContent = 'PINs don’t match'; return; }
       let ok = false;
       try { ok = await db.setIfEmpty('people/' + key + '/pinHash', h); } catch (err) { errEl.textContent = err.message; return; }
-      if (!ok) { errEl.textContent = 'Someone just set a PIN for this name. Go back and try again.'; return; }
+      if (!ok) { errEl.textContent = 'PIN was just set — go back and retry'; return; }
     } else if (h !== existing) {
-      errEl.textContent = 'Wrong PIN.'; return;
+      errEl.textContent = 'Wrong PIN'; return;
     }
     store.set('sint-me', JSON.stringify({ key, h }));
     enter(key);
@@ -293,22 +287,16 @@ function render() {
   const draftKey = i => (i.closest('form').dataset.id || '') + '|' + i.id;
   const drafts = Object.fromEntries([...document.querySelectorAll('form.add input')].map(i => [draftKey(i), i.value]));
 
+  const tabBtn = (t, label) => `<button data-tab="${t}" class="${tab === t ? 'on' : ''}">${label}</button>`;
   $app.innerHTML = `
-    <header>
-      <div class="hrow">
-        <h1>🎁 Sinterklaas <span>Lists</span></h1>
-        <div class="who">${esc(me.name)}<br><button id="logout">Log out</button></div>
-      </div>
-      <nav>
-        <button data-tab="mine" class="${tab === 'mine' ? 'on' : ''}">My list</button>
-        <button data-tab="everyone" class="${tab === 'everyone' ? 'on' : ''}">Everyone</button>
-        <button data-tab="buying" class="${tab === 'buying' ? 'on' : ''}">I'm buying</button>
-      </nav>
-    </header>
-    <main>
-      ${db.demo ? `<div class="banner"><b>Demo mode.</b> Not connected to the shared database yet — lists are only saved on this device.</div>` : ''}
+    <div class="page">
+      <div class="title"><h1>${TITLE}</h1></div>
+      <div class="orn">❦ ❦ ❦</div>
+      <div class="who">${esc(me.name)} · <button id="logout">leave</button></div>
+      <nav>${tabBtn('mine', 'my wishes')}<span class="dot">✦</span>${tabBtn('everyone', 'everyone')}<span class="dot">✦</span>${tabBtn('buying', 'my gifts')}</nav>
+      ${db.demo ? `<div class="demo">demo — not shared yet</div>` : ''}
       ${tab === 'mine' ? viewMine() : tab === 'everyone' ? (viewing ? viewPerson(viewing) : viewEveryone()) : viewBuying()}
-    </main>`;
+    </div>`;
 
   document.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el) el.focus(); }
@@ -329,107 +317,82 @@ function itemMeta(it) {
 function viewMine() {
   const list = sortedItems(me.key);
   return `
-    <h2>My wish list</h2>
-    <p class="note">🤫 Others can tick things off your list, but you’ll never see what’s been ticked — it’s a surprise!</p>
-    <div class="card">
-      <form class="add" id="addForm">
-        <input class="field" id="fTitle" placeholder="What would you like?" maxlength="200" required>
-        <div class="two">
-          <input class="field" id="fLink" placeholder="Link (optional)" inputmode="url">
-          <input class="field" id="fPrice" placeholder="€ (optional)" inputmode="decimal">
-        </div>
-        <button class="btn primary" type="submit">Add to my list</button>
-      </form>
-    </div>
-    ${list.length ? list.map(([id, it]) => editing === id ? editCard(id, it) : `
-      <div class="card item">
-        <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
-        <div class="actions">
-          <button class="iconbtn" data-edit="${id}" title="Edit" aria-label="Edit">✏️</button>
-          <button class="iconbtn" data-del="${id}" title="Delete" aria-label="Delete">🗑️</button>
-        </div>
-      </div>`).join('') : `<div class="empty">Your list is empty. Add something you’d like to get!</div>`}`;
+    <form class="add" id="addForm">
+      <input class="line" id="fTitle" placeholder="I wish for…" maxlength="200" required>
+      <div class="two">
+        <input class="line" id="fLink" placeholder="link" inputmode="url">
+        <input class="line" id="fPrice" placeholder="€" inputmode="decimal">
+      </div>
+      <div class="formrow"><button class="seal" type="submit" aria-label="Add">+</button></div>
+    </form>
+    ${list.length ? list.map(([id, it]) => editing === id ? editEntry(id, it) : `
+      <div class="entry">
+        <div class="body"><div class="what">${esc(it.title)}</div>${itemMeta(it)}</div>
+        <button class="quiet" data-edit="${id}" aria-label="Edit">✎</button>
+        <button class="quiet" data-del="${id}" aria-label="Delete">✕</button>
+      </div>`).join('') : `<div class="empty">nothing yet</div>`}`;
 }
 
-function editCard(id, it) {
+function editEntry(id, it) {
   return `
-    <div class="card">
-      <form class="add" id="editForm" data-id="${id}">
-        <input class="field" id="eTitle" value="${esc(it.title)}" maxlength="200" required>
-        <div class="two">
-          <input class="field" id="eLink" value="${esc(it.link || '')}" placeholder="Link (optional)" inputmode="url">
-          <input class="field" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€ (optional)" inputmode="decimal">
-        </div>
-        <div style="display:flex;gap:8px">
-          <button class="btn" type="button" id="cancelEdit" style="flex:1">Cancel</button>
-          <button class="btn primary" type="submit" style="flex:1">Save</button>
-        </div>
-      </form>
-    </div>`;
+    <form class="add" id="editForm" data-id="${id}" style="padding:8px 0;border-bottom:1px dashed var(--rule)">
+      <input class="line" id="eTitle" value="${esc(it.title)}" maxlength="200" required>
+      <div class="two">
+        <input class="line" id="eLink" value="${esc(it.link || '')}" placeholder="link" inputmode="url">
+        <input class="line" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€" inputmode="decimal">
+      </div>
+      <div class="formrow">
+        <button class="textbtn" type="button" id="cancelEdit">cancel</button>
+        <button class="seal" type="submit" aria-label="Save">✓</button>
+      </div>
+    </form>`;
 }
 
 function viewEveryone() {
-  const others = people.filter(p => p.key !== me.key);
-  return `
-    <h2>Everyone’s lists</h2>
-    <p class="note">Tap a name to see their list and tick off what you’re going to buy.</p>
-    ${others.map(p => {
-      const list = sortedItems(p.key);
-      const taken = list.filter(([id]) => claims[p.key] && claims[p.key][id]).length;
-      return `
-        <div class="card person" data-view="${esc(p.key)}">
-          <div class="avatar">${esc(p.name.charAt(0).toUpperCase())}</div>
-          <div class="body"><div><b>${esc(p.name)}</b></div>
-            <div class="sub">${list.length ? `${list.length} item${list.length === 1 ? '' : 's'} · ${taken} taken` : 'No items yet'}</div></div>
-          <div class="chev">›</div>
-        </div>`;
-    }).join('')}`;
+  return people.filter(p => p.key !== me.key).map(p => {
+    const list = sortedItems(p.key);
+    const taken = list.filter(([id]) => claims[p.key] && claims[p.key][id]).length;
+    return `
+      <div class="person" data-view="${esc(p.key)}">
+        <span class="name">${esc(p.name)}</span>
+        <span class="count">${list.length ? `${taken}/${list.length}` : '—'}</span>
+      </div>`;
+  }).join('');
 }
 
-function claimControl(owner, id) {
+function personEntry(owner, id, it) {
   const c = claims[owner] && claims[owner][id];
-  if (!c) return `<button class="btn gold small" data-claim="${id}">I’ll buy this</button>`;
-  if (c.by === me.key) return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-      <span class="claimtag mine">✓ You’re buying this</span>
-      <button class="btn small" data-unclaim="${id}">Undo</button></div>`;
-  return `<span class="claimtag">✓ ${esc(nameOf(c.by))} is buying this</span>`;
+  const mine = c && c.by === me.key;
+  const box = !c ? `<button class="box" data-claim="${id}" aria-label="I'll buy this"></button>`
+    : mine ? `<button class="box" data-unclaim="${id}" data-owner="${esc(owner)}" aria-label="Undo">✗</button>`
+    : `<button class="box" disabled aria-label="Taken">✗</button>`;
+  return `
+    <div class="entry ${c ? 'struck' : ''}">
+      ${box}
+      <div class="body"><div class="what">${esc(it.title)}</div>${itemMeta(it)}</div>
+      ${c ? `<span class="by">${mine ? 'me' : esc(nameOf(c.by))}</span>` : ''}
+    </div>`;
 }
 
 function viewPerson(key) {
   const list = sortedItems(key);
   return `
-    <button class="back" data-back>‹ Everyone</button>
-    <h2>${esc(nameOf(key))}’s list</h2>
-    <p class="note">${esc(nameOf(key))} can’t see what’s been ticked off. Everyone else can — so nobody buys the same thing twice.</p>
-    ${list.length ? list.map(([id, it]) => {
-      const c = claims[key] && claims[key][id];
-      return `
-        <div class="card item ${c ? 'claimed' : ''}">
-          <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
-          <div class="actions">${claimControl(key, id)}</div>
-        </div>`;
-    }).join('') : `<div class="empty">${esc(nameOf(key))} hasn’t added anything yet.</div>`}`;
+    <button class="back" data-back>‹ everyone</button>
+    <h2>${esc(nameOf(key))}</h2>
+    ${list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nothing yet</div>`}`;
 }
 
 function viewBuying() {
-  const groups = [];
-  let total = 0;
+  let total = 0, out = '';
   for (const p of people) {
     if (p.key === me.key) continue;
     const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claims[p.key][id].by === me.key);
-    if (mine.length) { groups.push([p, mine]); mine.forEach(([, it]) => { if (it.price != null) total += it.price; }); }
+    if (!mine.length) continue;
+    mine.forEach(([, it]) => { if (it.price != null) total += it.price; });
+    out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it)).join('');
   }
-  if (!groups.length) return `<h2>I’m buying</h2><div class="empty">You haven’t ticked anything yet. Go to <b>Everyone</b> to pick gifts.</div>`;
-  return `
-    <h2>I’m buying</h2>
-    ${groups.map(([p, list]) => `
-      <h3 style="font-size:15px;margin:16px 0 8px;color:var(--muted)">For ${esc(p.name)}</h3>
-      ${list.map(([id, it]) => `
-        <div class="card item">
-          <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
-          <div class="actions"><button class="btn small" data-unclaim="${id}" data-owner="${esc(p.key)}">Undo</button></div>
-        </div>`).join('')}`).join('')}
-    ${total ? `<div class="total">Total: ${euro(Math.round(total * 100) / 100)}</div>` : ''}`;
+  if (!out) return `<div class="empty">no gifts chosen yet</div>`;
+  return out + (total ? `<div class="total">total ${euro(Math.round(total * 100) / 100)}</div>` : '');
 }
 
 // ---------- Actions ----------
@@ -445,13 +408,13 @@ function bind() {
     const title = document.getElementById('fTitle').value.trim();
     const price = parsePrice(document.getElementById('fPrice').value);
     if (!title) return;
-    if (Number.isNaN(price)) { toast('Price should be a number, e.g. 24,95'); return; }
+    if (Number.isNaN(price)) { toast('price must be a number'); return; }
     const it = { title, created: Date.now() };
     const link = normLink(document.getElementById('fLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
     add.reset();
-    try { await db.update({ [`items/${me.key}/${db.newId()}`]: it }); toast('Added to your list'); }
-    catch (err) { toast('Could not save: ' + err.message); }
+    try { await db.update({ [`items/${me.key}/${db.newId()}`]: it }); toast('written down'); }
+    catch (err) { toast('not saved: ' + err.message); }
   };
 
   $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editing = b.dataset.edit; render(); });
@@ -468,42 +431,42 @@ function bind() {
     const link = normLink(document.getElementById('eLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
     editing = null;
-    try { await db.update({ [`items/${me.key}/${id}`]: it }); toast('Saved'); }
-    catch (err) { toast('Could not save: ' + err.message); }
+    try { await db.update({ [`items/${me.key}/${id}`]: it }); toast('saved'); }
+    catch (err) { toast('not saved: ' + err.message); }
   };
 
   $app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     const id = b.dataset.del, it = items[me.key][id];
-    if (!confirm(`Remove “${it.title}” from your list?`)) return;
+    if (!confirm(`Remove “${it.title}”?`)) return;
     // Also remove any (hidden) claim on it, so it doesn't linger on someone's "I'm buying" list.
-    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); toast('Removed'); }
-    catch (err) { toast('Could not remove: ' + err.message); }
+    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); toast('removed'); }
+    catch (err) { toast('not removed: ' + err.message); }
   });
 
   $app.querySelectorAll('[data-claim]').forEach(b => b.onclick = async () => {
     b.disabled = true;
     try {
       const ok = await db.setIfEmpty(`claims/${viewing}/${b.dataset.claim}`, { by: me.key, at: Date.now() });
-      toast(ok ? `Ticked! ${nameOf(viewing)} won’t see this.` : 'Someone else just ticked this one.');
-    } catch (err) { toast('Could not save: ' + err.message); b.disabled = false; }
+      if (!ok) toast('already taken');
+    } catch (err) { toast('not saved: ' + err.message); b.disabled = false; }
   });
 
   $app.querySelectorAll('[data-unclaim]').forEach(b => b.onclick = async () => {
     const owner = b.dataset.owner || viewing, id = b.dataset.unclaim;
     const c = claims[owner] && claims[owner][id];
     if (!c || c.by !== me.key) return;
-    try { await db.update({ [`claims/${owner}/${id}`]: null }); toast('Un-ticked'); }
-    catch (err) { toast('Could not save: ' + err.message); }
+    try { await db.update({ [`claims/${owner}/${id}`]: null }); }
+    catch (err) { toast('not saved: ' + err.message); }
   });
 }
 
 // ---------- Start ----------
 (async () => {
-  $app.innerHTML = `<div class="login"><div class="logo">🎁</div><p>Loading…</p></div>`;
+  $app.innerHTML = `<div class="login"><h1>Het Boek van Sinterklaas</h1></div>`;
   try {
     db = cfg.firebase ? await firebaseBackend(cfg.firebase) : demoBackend();
   } catch (e) {
-    $app.innerHTML = `<div class="login"><div class="logo">🎁</div><h1>Can’t connect</h1><p>${esc(e.message)}</p></div>`;
+    $app.innerHTML = `<div class="login"><h1>No connection</h1><p class="err">${esc(e.message)}</p></div>`;
     return;
   }
   // Stay logged in on this device, as long as the PIN hasn't been reset.
