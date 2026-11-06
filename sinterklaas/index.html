@@ -36,21 +36,22 @@
   .sheet { min-height: 100vh; min-height: 100dvh; background: var(--paperbg); background-attachment: fixed; }
   .page { max-width: 600px; margin: 0 auto; padding: calc(18px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom)); }
 
-  /* Page turning */
-  .turning { position: fixed !important; z-index: 40; overflow: hidden; pointer-events: none; background: var(--paperbg);
-    box-shadow: 0 0 30px rgba(40, 20, 0, .35); backface-visibility: hidden; will-change: transform; }
-  .turning::after { content: ""; position: absolute; inset: 0; pointer-events: none; animation: shade .75s ease-in forwards; }
-  .turning.fwd { transform-origin: 0 50%; animation: turnF .75s cubic-bezier(.5, .05, .4, 1) forwards; }
-  .turning.fwd::after { background: linear-gradient(90deg, rgba(0,0,0,0) 40%, rgba(60,30,0,.35)); }
-  .turning.back { transform-origin: 100% 50%; animation: turnB .75s cubic-bezier(.5, .05, .4, 1) forwards; }
-  .turning.back::after { background: linear-gradient(270deg, rgba(0,0,0,0) 40%, rgba(60,30,0,.35)); }
-  @keyframes turnF { 0% { transform: perspective(1800px) rotateY(0deg); } 100% { transform: perspective(1800px) rotateY(-105deg); } }
-  @keyframes turnB { 0% { transform: perspective(1800px) rotateY(0deg); } 100% { transform: perspective(1800px) rotateY(105deg); } }
-  @keyframes shade { from { opacity: 0; } to { opacity: 1; } }
+  /* Page curl (old page folds away from a corner) */
+  .curl { position: fixed; inset: 0; z-index: 40; pointer-events: none; }
+  .curl .old, .curl .clipbox { position: absolute; inset: 0; overflow: hidden; }
+  .curl .old { background: var(--paperbg); }
+  .curl .flapwrap { position: absolute; inset: 0; filter: drop-shadow(0 0 10px rgba(40, 20, 0, .4)); }
+  .curl .flap { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0; overflow: hidden;
+    background: var(--noise), linear-gradient(135deg, #f3e6c8, #e4d0a6); }
+  .curl .bleed { position: absolute; inset: 0; overflow: hidden; opacity: .08; }
+  .curl .shade { position: absolute; left: 0; top: 0; transform-origin: 0 0; }
+  .curl .shade.onflap { background: linear-gradient(180deg, rgba(70,35,5,.32) 0, rgba(70,35,5,.06) 16px, rgba(255,250,235,.28) 22%, rgba(70,35,5,.14) 75%); }
+  .curl .shade.onold { background: linear-gradient(180deg, rgba(50,25,0,.24) 0, rgba(50,25,0,.07) 26px, rgba(50,25,0,0) 70px); }
 
   /* Title block */
   .title { text-align: center; margin: 0 40px 2px; }
   .title h1 { font: 400 34px/1.05 var(--script); color: var(--red); margin: 0; }
+  .orn svg { display: block; margin: 2px auto 0; }
   .orn { text-align: center; color: var(--gold); letter-spacing: .4em; font-size: 15px; margin: 2px 0 6px; }
   .who { text-align: center; font-style: italic; color: var(--ink-soft); font-size: 15px; }
   .who button { background: none; border: 0; padding: 0; color: var(--ink-soft); text-decoration: underline; cursor: pointer; font-style: italic; }
@@ -159,7 +160,6 @@
   #toast.show { opacity: 1; }
 
   @media (prefers-reduced-motion: reduce) {
-    .turning { display: none; }
     .cover, #coverWrap { transition-duration: .01s !important; }
   }
 </style>
@@ -174,6 +174,11 @@
 const cfg = window.SINT_CONFIG || { names: [], firebase: null };
 const FIREBASE_VERSION = '10.12.2';
 const TITLE = 'Het Grote Boek van Sinterklaas';
+const CARROT = `<svg width="62" height="26" viewBox="0 0 62 26" aria-hidden="true">
+  <path d="M46 9.5 C 51 4, 55 2.5, 59 2 M46.5 11 C 53 9, 57 10, 60 12.5 M46 12 C 50 15, 54 18, 55.5 22" fill="none" stroke="#4f7a2a" stroke-width="2.2" stroke-linecap="round"/>
+  <path d="M3 18.5 C 16 14, 31 9.5, 43 8.6 C 48 8.3, 49.5 15.5, 45 16.8 C 33 19.8, 17 20.6, 3 18.5 Z" fill="#e2802a" stroke="#8a3d0a" stroke-width="1.2" stroke-linejoin="round"/>
+  <path d="M13 16.4 l3 2 M22 14 l3.4 2.4 M31 11.6 l2.6 2.2 M39 10 l2 2.4" stroke="#a24f12" stroke-width="1" stroke-linecap="round"/>
+</svg>`;
 const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- Helpers ----------
@@ -342,25 +347,85 @@ function subscribe() {
   }
 }
 
-// ---------- Page turning ----------
-// Snapshot the current page, draw the new one underneath, then flip the snapshot away.
+// ---------- Page curl ----------
+// The old page is snapshotted on top; its corner is lifted and folded over
+// (a reflection across the fold line), revealing the new page underneath.
+let curlState = null;
+function endCurl() {
+  if (!curlState) return;
+  cancelAnimationFrame(curlState.raf); curlState.el.remove(); curlState = null;
+}
+function clipPoly(pts, f) {                      // keep points where f(p) <= 0 (Sutherland–Hodgman)
+  const out = [];
+  for (let i = 0; i < pts.length; i++) {
+    const a = pts[i], b = pts[(i + 1) % pts.length], fa = f(a), fb = f(b);
+    if (fa <= 0) out.push(a);
+    if ((fa < 0 && fb > 0) || (fa > 0 && fb < 0)) { const t = fa / (fa - fb); out.push({ x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t }); }
+  }
+  return out;
+}
+const polyCss = pts => pts.length < 3 ? 'polygon(0 0, 0 0, 0 0)' : 'polygon(' + pts.map(p => `${p.x.toFixed(1)}px ${p.y.toFixed(1)}px`).join(',') + ')';
+const div = cls => { const d = document.createElement('div'); d.className = cls; return d; };
+function snapshot(sheet) {
+  const c = sheet.cloneNode(true);
+  c.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  c.querySelectorAll('form.add').forEach(e => e.classList.remove('add'));
+  c.setAttribute('inert', '');
+  return c;
+}
+
 function turn(dir, draw) {
+  endCurl();
   const old = $app.querySelector('.sheet');
   if (!old || reduceMotion) { draw(); Sound.page(); return; }
-  const scrolled = scrollY;
-  const clone = old.cloneNode(true);
-  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
-  clone.querySelectorAll('form.add').forEach(e => e.classList.remove('add'));
-  clone.setAttribute('inert', '');
-  clone.classList.add('turning', dir > 0 ? 'fwd' : 'back');
-  Object.assign(clone.style, { left: '0px', top: '0px', width: '100vw', height: '100vh' });
+  const W = innerWidth, H = innerHeight, D = Math.hypot(W, H), sc = scrollY;
+
+  const wrap = div('curl');
+  const oldBox = div('old'); oldBox.appendChild(snapshot(old));
+  const oldShadeBox = div('clipbox'), oldShade = div('shade onold'); oldShadeBox.appendChild(oldShade);
+  const flapWrap = div('flapwrap'), flap = div('flap'), bleed = div('bleed'), flapShade = div('shade onflap');
+  bleed.appendChild(snapshot(old)); flap.append(bleed, flapShade); flapWrap.appendChild(flap);
+  wrap.append(oldBox, oldShadeBox, flapWrap);
+  for (const sh of [oldShade, flapShade]) { sh.style.width = 3 * D + 'px'; sh.style.height = D + 'px'; }
+
   draw();
   scrollTo(0, 0);
-  document.body.appendChild(clone);
-  clone.scrollTop = scrolled;               // keep showing what was on screen
+  document.body.appendChild(wrap);
+  oldBox.scrollTop = sc; bleed.scrollTop = sc;
   Sound.page();
-  clone.addEventListener('animationend', e => { if (e.target === clone) clone.remove(); });
-  setTimeout(() => clone.remove(), 1200);
+
+  const rect = [{ x: 0, y: 0 }, { x: W, y: 0 }, { x: W, y: H }, { x: 0, y: H }];
+  const C = dir > 0 ? { x: W, y: H } : { x: 0, y: H };        // the corner being lifted
+  const dur = 900, t0 = performance.now();
+  const place = (el, M, ang) => { el.style.transform = `translate(${M.x}px,${M.y}px) rotate(${ang}rad) translate(${-1.5 * D}px,0)`; };
+
+  const frame = now => {
+    const t = Math.min(1, (now - t0) / dur);
+    const e = t < .5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;   // ease in-out
+    // Where the lifted corner currently is: sweeps across, rising a little in the middle.
+    const P = { x: dir > 0 ? W - e * 2 * W : e * 2 * W, y: H - Math.sin(Math.PI * Math.min(1, e * 1.1)) * H * 0.22 };
+    const v = { x: C.x - P.x, y: C.y - P.y }, len = Math.hypot(v.x, v.y);
+    if (len > 0.5) {
+      const M = { x: (C.x + P.x) / 2, y: (C.y + P.y) / 2 };
+      const side = p => (p.x - M.x) * v.x + (p.y - M.y) * v.y;     // > 0 on the lifted corner's side
+      const kept = clipPoly(rect, side), lifted = clipPoly(rect, p => -side(p));
+      oldBox.style.clipPath = oldShadeBox.style.clipPath = polyCss(kept);
+      flap.style.clipPath = polyCss(lifted);
+      // Reflect the lifted part across the fold line.
+      const dx = -v.y / len, dy = v.x / len;
+      const a = dx * dx - dy * dy, b = 2 * dx * dy, d = dy * dy - dx * dx;
+      flap.style.transform = `matrix(${a},${b},${b},${d},${M.x - (a * M.x + b * M.y)},${M.y - (b * M.x + d * M.y)})`;
+      // Shading strips along the fold: on the flap they face the lifted side, on the old page the spine side.
+      let ang = Math.atan2(dy, dx);
+      const towardCorner = (-Math.sin(ang)) * v.x + Math.cos(ang) * v.y > 0;
+      place(flapShade, M, towardCorner ? ang : ang + Math.PI);
+      place(oldShade, M, towardCorner ? ang + Math.PI : ang);
+    } else {
+      flap.style.clipPath = 'polygon(0 0, 0 0, 0 0)';
+    }
+    if (t < 1) curlState.raf = requestAnimationFrame(frame); else endCurl();
+  };
+  curlState = { el: wrap, raf: requestAnimationFrame(frame) };
 }
 
 // ---------- Cover ----------
@@ -491,7 +556,7 @@ function render() {
   $app.innerHTML = `
     <div class="sheet"><div class="page">
       <div class="title"><h1>${TITLE}</h1></div>
-      <div class="orn">❦ ❦ ❦</div>
+      <div class="orn">${CARROT}</div>
       <div class="who">${esc(me.name)} · <button id="logout">uitloggen</button></div>
       <nav>${tabBtn('mine', 'mijn wensen')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'mijn cadeaus')}</nav>
       ${db.demo ? `<div class="demo">demo — niet gedeeld</div>` : ''}
