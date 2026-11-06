@@ -935,7 +935,7 @@ function render() {
       <div class="title"><h1>${TITLE}</h1></div>
       <div class="orn">${ORNAMENTS[Math.max(0, pageIndex()) % ORNAMENTS.length]}</div>
       <div class="who">${esc(me.name)} · <button id="logout">uitloggen</button></div>
-      <nav>${tabBtn('mine', 'mijn wensen')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'mijn cadeaus')}</nav>
+      <nav>${tabBtn('mine', 'mijn wensen')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'winkellijstje')}</nav>
       ${db.demo ? `<div class="demo">demo — niet gedeeld</div>` : ''}
       ${tab === 'mine' ? viewMine() : tab === 'everyone' ? (viewing ? viewPerson(viewing) : viewEveryone()) : viewBuying()}
       <div class="folio">— ${pageIndex() + 1} —</div>
@@ -1055,7 +1055,7 @@ function viewBuying() {
     mine.forEach(([, it]) => { if (it.price != null) total += it.price; });
     out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it)).join('');
   }
-  if (!out) return `<div class="empty">nog geen cadeaus gekozen</div>`;
+  if (!out) return `<div class="empty">je winkellijstje is nog leeg</div>`;
   return out + (total ? `<div class="total">totaal ${euro(Math.round(total * 100) / 100)}</div>` : '');
 }
 
