@@ -5,7 +5,7 @@ of the Big Book: tap to open it, pick your name, enter your PIN. Pages turn with
 there are synthesised sound effects (mute button top right).
 
 The book reads in order: **1** your own wishes, **2** contents (everyone), then one page per person,
-and finally the gifts you're buying. Turn pages by dragging (or tapping) the folded corner at the
+and finally your shopping list (winkellijstje). Turn pages by dragging (or tapping) the folded corner at the
 bottom right; go back with the folded corner at the bottom left. The menu at the top jumps directly.
 
 - Everyone picks their name and protects it with a PIN (set on first login).
