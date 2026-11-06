@@ -48,3 +48,8 @@ In the Firebase console open **Realtime Database → Data**, go to `people → <
 The PIN stops people from casually opening someone else's list or seeing the ticks on their own.
 It is not bank-grade security: someone technical could still read the database directly. That's
 fine for a family gift list, but don't put anything truly secret in it.
+
+## Sounds
+
+`sounds/page1-4.mp3` are page turns cut from "paper turn" (freesound_community, Pixabay) and are
+played at random for page turns. The other effects are synthesised in the browser.
