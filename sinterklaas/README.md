@@ -53,4 +53,4 @@ fine for a family gift list, but don't put anything truly secret in it.
 
 `sounds/page1-4.mp3` are page turns cut from "paper turn" (freesound_community, Pixabay), and
 `sounds/write1-6.mp3` are pencil-writing strokes cut from "writing with pencil" (Pixabay). Both are
-played at random (page turns, writing a wish). The other effects are synthesised in the browser.
+played at random (page turns, writing a wish). `sounds/close1.mp3` is the book closing on logout. The other effects are synthesised in the browser.
