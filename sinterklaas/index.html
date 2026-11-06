@@ -1044,7 +1044,7 @@ function personEntry(owner, id, it, editable = false) {
     <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
       <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}</div>
-      ${c ? `<span class="by">${state === 'mine' ? 'ik' : esc(nameOf(c.by))}</span>` : ''}
+      ${state === 'mine' ? `<span class="by">ik</span>` : ''}
       ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
       <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
     </div>`;

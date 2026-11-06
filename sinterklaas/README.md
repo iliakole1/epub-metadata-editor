@@ -12,7 +12,7 @@ bottom right; go back with the folded corner at the bottom left. The menu at the
 - **My list**: write new wishes on the line at the bottom (like a chat), with an optional link and
   price; edit or delete items.
 - **Everyone**: see everyone else's lists and strike a wish off by swiping across it (or tapping
-  the word or the box on the left; links stay tappable). Others see who struck what, so nobody
+  the word or the box on the left; links stay tappable). Others see that it's struck (but not by whom), so nobody
   buys the same thing twice. Swipe back to erase your own strike.
 - **The surprise rule**: you never see ticks on your own list. The app doesn't even download them.
 - **I'm buying**: everything you've ticked, grouped per person, with a price total.
