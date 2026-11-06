@@ -119,12 +119,22 @@
   .center .formrow { justify-content: center; gap: 22px; }
 
   /* ---------- The book cover ---------- */
-  #coverWrap { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; perspective: 2200px;
-    background: radial-gradient(ellipse at 50% 45%, #5b3520 0%, #2e170b 75%, #1c0d05 100%); transition: opacity .6s .5s; }
-  #coverWrap.opening { opacity: 0; }
-  .cover { position: relative; width: min(82vw, 400px); aspect-ratio: 3 / 4.15; transform-style: preserve-3d; transform-origin: 0 50%;
-    transition: transform 1.15s cubic-bezier(.55, .05, .3, 1); cursor: pointer; }
-  #coverWrap.opening .cover { transform: rotateY(-165deg); }
+  #coverWrap { position: fixed; inset: 0; z-index: 50; overflow: hidden; touch-action: none; }
+  #coverWrap .backdrop { position: absolute; inset: 0; background: radial-gradient(ellipse at 50% 45%, #5b3520 0%, #2e170b 75%, #1c0d05 100%);
+    transition: opacity .25s ease .7s; }
+  #coverWrap.zoom .backdrop { opacity: 0; }
+  .stage { position: absolute; left: 0; top: 0; width: 100%; height: 100%; transform-origin: 0 0;
+    transition: transform .9s cubic-bezier(.55, .05, .25, 1); }
+  .book { position: absolute; perspective: 2200px; }
+  .under { position: absolute; inset: 0; overflow: hidden; background: var(--paperbg); background-attachment: scroll;
+    border-radius: 2px 6px 6px 2px; box-shadow: 0 30px 60px rgba(0,0,0,.6); transition: box-shadow .8s, border-radius .8s; }
+  .under::after { content: ""; position: absolute; inset: 0; pointer-events: none; transition: opacity .8s;
+    background: linear-gradient(90deg, rgba(60, 30, 0, .35), rgba(60, 30, 0, 0) 12%); }
+  #coverWrap.zoom .under { box-shadow: none; border-radius: 0; }
+  #coverWrap.zoom .under::after { opacity: 0; }
+  .snap { position: absolute; left: 0; top: 0; transform-origin: 0 0; pointer-events: none; }
+  .snap .sheet { background-attachment: scroll; }
+  .cover { position: absolute; inset: 0; transform-style: preserve-3d; transform-origin: 0 50%; cursor: grab; touch-action: none; }
   .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 4px 12px 12px 4px; }
   .front { overflow: hidden;
     background: var(--noise), radial-gradient(ellipse at 35% 25%, #b8232c 0%, #8a121a 45%, #5c0910 100%);
@@ -190,7 +200,7 @@
   #toast.show { opacity: 1; }
 
   @media (prefers-reduced-motion: reduce) {
-    .cover, #coverWrap { transition-duration: .01s !important; }
+    .stage, .cover { transition-duration: .01s !important; }
   }
 </style>
 </head>
@@ -586,36 +596,95 @@ const MITRE = `<svg class="mitre" viewBox="0 0 100 120" aria-hidden="true">
   <path d="M30 104 L24 118 M70 104 L76 118" stroke="url(#gm)" stroke-width="3.5" stroke-linecap="round"/>
 </svg>`;
 
+// The closed book. Drag the cover open (at your own speed) or tap it; then we zoom into the
+// first page, which is a snapshot of the real page waiting underneath.
 function showCover(behind) {
-  behind();                                   // the first page, waiting under the cover
+  behind();
+  muteBtn.style.display = 'none';
+  const W = innerWidth, H = innerHeight;
+  // The book is at least as tall (relative to its width) as the screen, so that
+  // zooming into its first page ends up covering the whole screen exactly.
+  const r = Math.max(4.15 / 3, H / W);
+  const bw = Math.min(W * .82, 400, H * .86 / r), bh = bw * r;
+  const bx = (W - bw) / 2, by = (H - bh) / 2, s = bw / W;
   const wrap = document.createElement('div');
   wrap.id = 'coverWrap';
   wrap.innerHTML = `
-    <div class="cover" role="button" aria-label="Open het boek" tabindex="0">
-      <div class="pages"></div>
-      <div class="face front">
-        <div class="frame"></div>
-        <span class="corner tl">❦</span><span class="corner tr">❦</span><span class="corner bl">❦</span><span class="corner br">❦</span>
-        <div class="cover-text">
-          <div class="gold small">Het</div>
-          <div class="gold big">Grote Boek</div>
-          ${MITRE}
-          <div class="gold small">van Sinterklaas</div>
+    <div class="backdrop"></div>
+    <div class="stage">
+      <div class="book" style="left:${bx}px;top:${by}px;width:${bw}px;height:${bh}px">
+        <div class="under"><div class="snap" style="width:${W}px;height:${H}px;transform:scale(${s})"></div></div>
+        <div class="cover" role="button" aria-label="Open het boek" tabindex="0">
+          <div class="pages"></div>
+          <div class="face front">
+            <div class="frame"></div>
+            <span class="corner tl">❦</span><span class="corner tr">❦</span><span class="corner bl">❦</span><span class="corner br">❦</span>
+            <div class="cover-text">
+              <div class="gold small">Het</div>
+              <div class="gold big">Grote Boek</div>
+              ${MITRE}
+              <div class="gold small">van Sinterklaas</div>
+            </div>
+            <div class="tap">tik of sleep om te openen</div>
+          </div>
+          <div class="face inside"></div>
         </div>
-        <div class="tap">tik om te openen</div>
       </div>
-      <div class="face inside"></div>
     </div>`;
+  const sheet = $app.querySelector('.sheet');
+  if (sheet) wrap.querySelector('.snap').appendChild(snapshot(sheet));
   document.body.appendChild(wrap);
-  muteBtn.style.display = 'none';
-  const open = () => {
-    if (wrap.classList.contains('opening')) return;
-    Sound.unlock(); Sound.open();
-    wrap.classList.add('opening');
-    setTimeout(() => { wrap.remove(); muteBtn.style.display = 'block'; }, reduceMotion ? 50 : 1250);
+
+  const cover = wrap.querySelector('.cover'), stage = wrap.querySelector('.stage');
+  const OPEN = -165;
+  let angle = 0, done = false;
+  const setAngle = (a, ms = 0) => {
+    angle = a;
+    cover.style.transition = ms ? `transform ${ms}ms cubic-bezier(.35, .1, .3, 1)` : 'none';
+    cover.style.transform = `rotateY(${a}deg)`;
   };
-  wrap.querySelector('.cover').addEventListener('click', open);
-  wrap.querySelector('.cover').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+  const zoom = () => {
+    const k = W / bw;
+    stage.style.transform = `translate(${-bx * k}px, ${-by * k}px) scale(${k})`;
+    wrap.classList.add('zoom');
+    setTimeout(() => { wrap.remove(); muteBtn.style.display = 'block'; }, reduceMotion ? 30 : 950);
+  };
+  const finish = () => {
+    if (done) return; done = true;
+    Sound.unlock(); Sound.open();
+    const ms = reduceMotion ? 10 : Math.round(250 + 800 * (1 - angle / OPEN));
+    setAngle(OPEN, ms);
+    setTimeout(zoom, Math.max(0, ms - 300));
+  };
+
+  let start = null, dragging = false, lastX = 0, lastT = 0, vx = 0;
+  cover.addEventListener('pointerdown', e => {
+    if (done) return;
+    start = { x: e.clientX, id: e.pointerId }; dragging = false; vx = 0;
+    try { cover.setPointerCapture(e.pointerId); } catch (_) {}
+  });
+  cover.addEventListener('pointermove', e => {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = start.x - e.clientX;
+    if (!dragging) {
+      if (Math.abs(dx) < 6) return;
+      dragging = true; Sound.unlock(); Sound.rustle();
+      lastX = e.clientX; lastT = e.timeStamp;
+    }
+    setAngle(OPEN * clamp(dx / (bw * 1.15), 0, 1));
+    vx = (e.clientX - lastX) / Math.max(1, e.timeStamp - lastT); lastX = e.clientX; lastT = e.timeStamp;
+  });
+  const end = e => {
+    if (!start || e.pointerId !== start.id) return;
+    start = null;
+    if (!dragging) { if (e.type === 'pointerup') finish(); return; }
+    const flick = e.timeStamp - lastT < 90 && vx < -0.5;
+    if (angle / OPEN > .4 || flick) finish();
+    else setAngle(0, 320);                       // let go early: the cover falls shut
+  };
+  cover.addEventListener('pointerup', end);
+  cover.addEventListener('pointercancel', end);
+  cover.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') finish(); });
 }
 
 // ---------- Names + PIN ----------
