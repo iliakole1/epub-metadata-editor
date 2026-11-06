@@ -1,0 +1,522 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#a3122a">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<title>Sinterklaas Lists</title>
+<style>
+  :root {
+    --red: #a3122a;
+    --red-dark: #7c0c1f;
+    --gold: #e3a93b;
+    --bg: #fbf6ee;
+    --card: #ffffff;
+    --text: #2a1a14;
+    --muted: #7d6a60;
+    --line: #eadfd1;
+    --ok: #2f7d4a;
+    --ok-bg: #e6f3ea;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  button, input { font: inherit; color: inherit; }
+  a { color: var(--red); }
+
+  header {
+    position: sticky; top: 0; z-index: 5;
+    background: linear-gradient(135deg, var(--red), var(--red-dark));
+    color: #fff; padding: calc(12px + env(safe-area-inset-top)) 16px 12px;
+    box-shadow: 0 2px 10px rgba(80, 0, 10, .25);
+  }
+  .hrow { display: flex; align-items: center; gap: 10px; max-width: 640px; margin: 0 auto; }
+  header h1 { margin: 0; font-size: 20px; flex: 1; letter-spacing: -.01em; }
+  header h1 span { color: var(--gold); }
+  .who { font-size: 13px; opacity: .9; text-align: right; }
+  .who button { background: none; border: 0; color: #fff; text-decoration: underline; padding: 0; cursor: pointer; font-size: 13px; opacity: .85; }
+
+  nav { display: flex; gap: 6px; max-width: 640px; margin: 10px auto 0; }
+  nav button {
+    flex: 1; border: 0; border-radius: 10px; padding: 9px 4px; cursor: pointer;
+    background: rgba(255,255,255,.14); color: #fff; font-weight: 600; font-size: 14px;
+  }
+  nav button.on { background: #fff; color: var(--red); }
+
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px calc(40px + env(safe-area-inset-bottom)); }
+
+  .banner { background: #fff4d6; border: 1px solid #f0d78f; color: #6b4e00; border-radius: 12px;
+    padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
+  .note { color: var(--muted); font-size: 14px; margin: 4px 0 14px; }
+  h2 { font-size: 18px; margin: 4px 0 10px; }
+
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px; margin-bottom: 10px; }
+  .item { display: flex; gap: 12px; align-items: flex-start; }
+  .item .body { flex: 1; min-width: 0; }
+  .item .title { font-weight: 600; word-wrap: break-word; }
+  .item .meta { font-size: 14px; color: var(--muted); margin-top: 2px; display: flex; gap: 10px; flex-wrap: wrap; }
+  .item .meta a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
+  .item.claimed .title { color: var(--muted); }
+  .actions { display: flex; gap: 6px; flex: none; }
+
+  .btn { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 8px 12px; cursor: pointer; font-size: 14px; }
+  .btn.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  .btn.gold { background: var(--gold); border-color: var(--gold); color: #3a2400; font-weight: 600; }
+  .btn.small { padding: 6px 10px; font-size: 13px; }
+  .btn:disabled { opacity: .5; cursor: default; }
+  .iconbtn { border: 0; background: none; padding: 6px; cursor: pointer; font-size: 17px; color: var(--muted); border-radius: 8px; }
+
+  .claimtag { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600;
+    color: var(--ok); background: var(--ok-bg); padding: 5px 9px; border-radius: 8px; white-space: nowrap; }
+  .claimtag.mine { color: #fff; background: var(--ok); }
+
+  form.add { display: grid; gap: 8px; }
+  .field { width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 11px 12px; background: #fff; }
+  .field:focus { outline: 2px solid var(--gold); border-color: var(--gold); }
+  .two { display: grid; grid-template-columns: 1fr 120px; gap: 8px; }
+
+  .person { display: flex; align-items: center; gap: 12px; cursor: pointer; }
+  .avatar { width: 40px; height: 40px; border-radius: 50%; background: var(--red); color: #fff;
+    display: grid; place-items: center; font-weight: 700; flex: none; }
+  .person .body { flex: 1; }
+  .person .sub { font-size: 13px; color: var(--muted); }
+  .chev { color: var(--muted); font-size: 20px; }
+  .back { background: none; border: 0; color: var(--red); padding: 0; cursor: pointer; font-weight: 600; margin-bottom: 10px; }
+  .empty { text-align: center; color: var(--muted); padding: 24px 10px; }
+  .total { text-align: right; font-weight: 700; margin-top: 6px; }
+
+  /* Login */
+  .login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center;
+    justify-content: center; padding: 24px 16px; text-align: center;
+    background: radial-gradient(ellipse at 50% 0%, #c4223b 0%, var(--red-dark) 70%); color: #fff; }
+  .login .logo { font-size: 56px; }
+  .login h1 { margin: 6px 0 4px; font-size: 28px; }
+  .login p { margin: 0 0 18px; opacity: .85; }
+  .names { display: grid; grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 10px; width: 100%; max-width: 440px; }
+  .names button { border: 0; border-radius: 12px; padding: 14px 10px; background: #fff; color: var(--red); font-weight: 700; cursor: pointer; }
+  .pinbox { width: 100%; max-width: 320px; background: #fff; color: var(--text); border-radius: 16px; padding: 20px; }
+  .pinbox h2 { margin: 0 0 4px; }
+  .pinbox p { color: var(--muted); opacity: 1; margin-bottom: 14px; font-size: 14px; }
+  .pin { letter-spacing: .5em; text-align: center; font-size: 24px; }
+  .err { color: #c0142f; font-size: 14px; min-height: 20px; margin: 8px 0 0; }
+  .pinbox .row { display: flex; gap: 8px; margin-top: 12px; }
+  .pinbox .row .btn { flex: 1; padding: 11px; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(20px + env(safe-area-inset-bottom)); transform: translateX(-50%);
+    background: #2a1a14; color: #fff; padding: 10px 16px; border-radius: 22px; font-size: 14px;
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; max-width: 90vw; }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="toast"></div>
+
+<script src="config.js"></script>
+<script type="module">
+const cfg = window.SINT_CONFIG || { names: [], firebase: null };
+const FIREBASE_VERSION = '10.12.2';
+
+// ---------- Helpers ----------
+const $app = document.getElementById('app');
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const keyOf = n => n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
+const people = cfg.names.map(name => ({ name, key: keyOf(name) }));
+const nameOf = key => (people.find(p => p.key === key) || { name: key }).name;
+const euro = n => '€' + (Number.isInteger(n) ? n : n.toFixed(2)).toString().replace('.', ',');
+let toastTimer;
+function toast(msg) {
+  const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), 2200);
+}
+async function hashPin(personKey, pin) {
+  const data = new TextEncoder().encode('sinterklaas:' + personKey + ':' + pin);
+  const buf = await crypto.subtle.digest('SHA-256', data);
+  return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
+}
+function normLink(s) {
+  s = s.trim(); if (!s) return '';
+  return /^https?:\/\//i.test(s) ? s : 'https://' + s;
+}
+function parsePrice(s) {
+  s = String(s).replace(/[€\s]/g, '').replace(',', '.');
+  if (!s) return null;
+  const n = Math.round(parseFloat(s) * 100) / 100;
+  return isFinite(n) && n >= 0 ? n : NaN;
+}
+const store = {
+  get(k) { try { return localStorage.getItem(k); } catch (_) { return null; } },
+  set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
+  del(k) { try { localStorage.removeItem(k); } catch (_) {} },
+};
+
+// ---------- Backends ----------
+// Both expose: get(path), update({path: value}), on(path, cb) -> unsubscribe,
+// newId(), setIfEmpty(path, value) -> true if written.
+async function firebaseBackend(conf) {
+  const base = `https://www.gstatic.com/firebasejs/${FIREBASE_VERSION}/`;
+  const { initializeApp } = await import(base + 'firebase-app.js');
+  const f = await import(base + 'firebase-database.js');
+  const db = f.getDatabase(initializeApp(conf));
+  return {
+    demo: false,
+    get: async p => (await f.get(f.ref(db, p))).val(),
+    update: o => f.update(f.ref(db), o),
+    on: (p, cb) => f.onValue(f.ref(db, p), s => cb(s.val()), e => { console.error(e); toast('Connection problem: ' + e.message); }),
+    newId: () => f.push(f.ref(db, 'ids')).key,
+    setIfEmpty: async (p, v) => (await f.runTransaction(f.ref(db, p), cur => (cur === null ? v : undefined))).committed,
+  };
+}
+
+function demoBackend() {
+  const KEY = 'sint-demo-db';
+  const load = () => { try { return JSON.parse(store.get(KEY)) || {}; } catch (_) { return {}; } };
+  let tree = load();
+  const listeners = new Set();
+  const parts = p => p.split('/').filter(Boolean);
+  const getAt = p => parts(p).reduce((o, k) => (o == null ? null : o[k] ?? null), tree);
+  function setAt(p, v) {
+    const ks = parts(p); let o = tree;
+    for (let i = 0; i < ks.length - 1; i++) { if (typeof o[ks[i]] !== 'object' || !o[ks[i]]) o[ks[i]] = {}; o = o[ks[i]]; }
+    if (v === null) delete o[ks[ks.length - 1]]; else o[ks[ks.length - 1]] = v;
+  }
+  const notify = () => listeners.forEach(l => l.cb(structuredClone(getAt(l.p))));
+  window.addEventListener('storage', e => { if (e.key === KEY) { tree = load(); notify(); } });
+  return {
+    demo: true,
+    get: async p => structuredClone(getAt(p)),
+    update: async o => { for (const [p, v] of Object.entries(o)) setAt(p, v); store.set(KEY, JSON.stringify(tree)); notify(); },
+    on: (p, cb) => { const l = { p, cb }; listeners.add(l); cb(structuredClone(getAt(p))); return () => listeners.delete(l); },
+    newId: () => Date.now().toString(36) + Math.random().toString(36).slice(2, 8),
+    setIfEmpty: async function (p, v) { if (getAt(p) !== null) return false; await this.update({ [p]: v }); return true; },
+  };
+}
+
+// ---------- State ----------
+let db;
+let me = null;                       // { name, key }
+let tab = 'mine';                    // 'mine' | 'everyone' | 'buying'
+let viewing = null;                  // person key when looking at someone's list
+let editing = null;                  // item id being edited (my list)
+let items = {};                      // items[ownerKey][itemId]
+let claims = {};                     // claims[ownerKey][itemId] — NEVER loaded for my own list
+let subs = [];
+
+function subscribe() {
+  subs.forEach(u => u()); subs = [];
+  subs.push(db.on('items', v => { items = v || {}; render(); }));
+  // Only listen to other people's claims. Claims on my own list are never downloaded.
+  for (const p of people) {
+    if (p.key === me.key) continue;
+    subs.push(db.on('claims/' + p.key, v => { claims[p.key] = v || {}; render(); }));
+  }
+}
+
+function logout() {
+  subs.forEach(u => u()); subs = [];
+  me = null; items = {}; claims = {}; viewing = null; editing = null; tab = 'mine';
+  store.del('sint-me');
+  renderLogin();
+}
+
+// ---------- Login ----------
+function renderLogin(err = '') {
+  $app.innerHTML = `
+    <div class="login">
+      <div class="logo">🎁</div>
+      <h1>Sinterklaas Lists</h1>
+      <p>Who are you?</p>
+      <div class="names">${people.map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
+      ${db && db.demo ? `<p style="margin-top:22px;font-size:13px">Demo mode — not connected to the shared database yet.</p>` : ''}
+      <p class="err" style="color:#ffd5d5">${esc(err)}</p>
+    </div>`;
+  $app.querySelectorAll('[data-person]').forEach(b => b.onclick = () => renderPin(b.dataset.person));
+}
+
+async function renderPin(key) {
+  const name = nameOf(key);
+  $app.innerHTML = `<div class="login"><div class="logo">🎁</div><div class="pinbox"><h2>${esc(name)}</h2><p>Loading…</p></div></div>`;
+  let existing;
+  try { existing = await db.get('people/' + key + '/pinHash'); }
+  catch (e) { renderLogin('Could not reach the database: ' + e.message); return; }
+  const isNew = !existing;
+  $app.innerHTML = `
+    <div class="login">
+      <div class="logo">🎁</div>
+      <form class="pinbox" autocomplete="off">
+        <h2>Hi ${esc(name)}!</h2>
+        <p>${isNew ? 'First time here — choose a PIN (4–8 digits). You’ll need it every time you log in on a new device.' : 'Enter your PIN.'}</p>
+        <input class="field pin" id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="PIN" autofocus>
+        ${isNew ? `<input class="field pin" id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="Repeat PIN" style="margin-top:8px">` : ''}
+        <p class="err" id="err"></p>
+        <div class="row">
+          <button type="button" class="btn" id="back">Back</button>
+          <button type="submit" class="btn primary">${isNew ? 'Set PIN' : 'Log in'}</button>
+        </div>
+      </form>
+    </div>`;
+  const errEl = document.getElementById('err');
+  document.getElementById('back').onclick = () => renderLogin();
+  $app.querySelector('form').onsubmit = async e => {
+    e.preventDefault();
+    const pin = document.getElementById('pin1').value.trim();
+    if (!/^\d{4,8}$/.test(pin)) { errEl.textContent = 'Use 4 to 8 digits.'; return; }
+    const h = await hashPin(key, pin);
+    if (isNew) {
+      if (document.getElementById('pin2').value.trim() !== pin) { errEl.textContent = 'The PINs don’t match.'; return; }
+      let ok = false;
+      try { ok = await db.setIfEmpty('people/' + key + '/pinHash', h); } catch (err) { errEl.textContent = err.message; return; }
+      if (!ok) { errEl.textContent = 'Someone just set a PIN for this name. Go back and try again.'; return; }
+    } else if (h !== existing) {
+      errEl.textContent = 'Wrong PIN.'; return;
+    }
+    store.set('sint-me', JSON.stringify({ key, h }));
+    enter(key);
+  };
+}
+
+function enter(key) {
+  me = { key, name: nameOf(key) };
+  tab = 'mine'; viewing = null; editing = null;
+  subscribe();
+  render();
+}
+
+// ---------- Main views ----------
+function render() {
+  if (!me) return;
+  const active = document.activeElement;
+  const keepFocus = active && active.closest && active.closest('form.add') ? active.id : null;
+  // Keep whatever is typed in a form when live updates re-render the page.
+  const draftKey = i => (i.closest('form').dataset.id || '') + '|' + i.id;
+  const drafts = Object.fromEntries([...document.querySelectorAll('form.add input')].map(i => [draftKey(i), i.value]));
+
+  $app.innerHTML = `
+    <header>
+      <div class="hrow">
+        <h1>🎁 Sinterklaas <span>Lists</span></h1>
+        <div class="who">${esc(me.name)}<br><button id="logout">Log out</button></div>
+      </div>
+      <nav>
+        <button data-tab="mine" class="${tab === 'mine' ? 'on' : ''}">My list</button>
+        <button data-tab="everyone" class="${tab === 'everyone' ? 'on' : ''}">Everyone</button>
+        <button data-tab="buying" class="${tab === 'buying' ? 'on' : ''}">I'm buying</button>
+      </nav>
+    </header>
+    <main>
+      ${db.demo ? `<div class="banner"><b>Demo mode.</b> Not connected to the shared database yet — lists are only saved on this device.</div>` : ''}
+      ${tab === 'mine' ? viewMine() : tab === 'everyone' ? (viewing ? viewPerson(viewing) : viewEveryone()) : viewBuying()}
+    </main>`;
+
+  document.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
+  if (keepFocus) { const el = document.getElementById(keepFocus); if (el) el.focus(); }
+  bind();
+}
+
+function sortedItems(owner) {
+  return Object.entries(items[owner] || {}).sort((a, b) => (a[1].created || 0) - (b[1].created || 0));
+}
+
+function itemMeta(it) {
+  const bits = [];
+  if (it.price != null) bits.push(`<span>${euro(it.price)}</span>`);
+  if (it.link) bits.push(`<a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">${esc(it.link.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
+  return bits.length ? `<div class="meta">${bits.join('')}</div>` : '';
+}
+
+function viewMine() {
+  const list = sortedItems(me.key);
+  return `
+    <h2>My wish list</h2>
+    <p class="note">🤫 Others can tick things off your list, but you’ll never see what’s been ticked — it’s a surprise!</p>
+    <div class="card">
+      <form class="add" id="addForm">
+        <input class="field" id="fTitle" placeholder="What would you like?" maxlength="200" required>
+        <div class="two">
+          <input class="field" id="fLink" placeholder="Link (optional)" inputmode="url">
+          <input class="field" id="fPrice" placeholder="€ (optional)" inputmode="decimal">
+        </div>
+        <button class="btn primary" type="submit">Add to my list</button>
+      </form>
+    </div>
+    ${list.length ? list.map(([id, it]) => editing === id ? editCard(id, it) : `
+      <div class="card item">
+        <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
+        <div class="actions">
+          <button class="iconbtn" data-edit="${id}" title="Edit" aria-label="Edit">✏️</button>
+          <button class="iconbtn" data-del="${id}" title="Delete" aria-label="Delete">🗑️</button>
+        </div>
+      </div>`).join('') : `<div class="empty">Your list is empty. Add something you’d like to get!</div>`}`;
+}
+
+function editCard(id, it) {
+  return `
+    <div class="card">
+      <form class="add" id="editForm" data-id="${id}">
+        <input class="field" id="eTitle" value="${esc(it.title)}" maxlength="200" required>
+        <div class="two">
+          <input class="field" id="eLink" value="${esc(it.link || '')}" placeholder="Link (optional)" inputmode="url">
+          <input class="field" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€ (optional)" inputmode="decimal">
+        </div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" type="button" id="cancelEdit" style="flex:1">Cancel</button>
+          <button class="btn primary" type="submit" style="flex:1">Save</button>
+        </div>
+      </form>
+    </div>`;
+}
+
+function viewEveryone() {
+  const others = people.filter(p => p.key !== me.key);
+  return `
+    <h2>Everyone’s lists</h2>
+    <p class="note">Tap a name to see their list and tick off what you’re going to buy.</p>
+    ${others.map(p => {
+      const list = sortedItems(p.key);
+      const taken = list.filter(([id]) => claims[p.key] && claims[p.key][id]).length;
+      return `
+        <div class="card person" data-view="${esc(p.key)}">
+          <div class="avatar">${esc(p.name.charAt(0).toUpperCase())}</div>
+          <div class="body"><div><b>${esc(p.name)}</b></div>
+            <div class="sub">${list.length ? `${list.length} item${list.length === 1 ? '' : 's'} · ${taken} taken` : 'No items yet'}</div></div>
+          <div class="chev">›</div>
+        </div>`;
+    }).join('')}`;
+}
+
+function claimControl(owner, id) {
+  const c = claims[owner] && claims[owner][id];
+  if (!c) return `<button class="btn gold small" data-claim="${id}">I’ll buy this</button>`;
+  if (c.by === me.key) return `<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
+      <span class="claimtag mine">✓ You’re buying this</span>
+      <button class="btn small" data-unclaim="${id}">Undo</button></div>`;
+  return `<span class="claimtag">✓ ${esc(nameOf(c.by))} is buying this</span>`;
+}
+
+function viewPerson(key) {
+  const list = sortedItems(key);
+  return `
+    <button class="back" data-back>‹ Everyone</button>
+    <h2>${esc(nameOf(key))}’s list</h2>
+    <p class="note">${esc(nameOf(key))} can’t see what’s been ticked off. Everyone else can — so nobody buys the same thing twice.</p>
+    ${list.length ? list.map(([id, it]) => {
+      const c = claims[key] && claims[key][id];
+      return `
+        <div class="card item ${c ? 'claimed' : ''}">
+          <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
+          <div class="actions">${claimControl(key, id)}</div>
+        </div>`;
+    }).join('') : `<div class="empty">${esc(nameOf(key))} hasn’t added anything yet.</div>`}`;
+}
+
+function viewBuying() {
+  const groups = [];
+  let total = 0;
+  for (const p of people) {
+    if (p.key === me.key) continue;
+    const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claims[p.key][id].by === me.key);
+    if (mine.length) { groups.push([p, mine]); mine.forEach(([, it]) => { if (it.price != null) total += it.price; }); }
+  }
+  if (!groups.length) return `<h2>I’m buying</h2><div class="empty">You haven’t ticked anything yet. Go to <b>Everyone</b> to pick gifts.</div>`;
+  return `
+    <h2>I’m buying</h2>
+    ${groups.map(([p, list]) => `
+      <h3 style="font-size:15px;margin:16px 0 8px;color:var(--muted)">For ${esc(p.name)}</h3>
+      ${list.map(([id, it]) => `
+        <div class="card item">
+          <div class="body"><div class="title">${esc(it.title)}</div>${itemMeta(it)}</div>
+          <div class="actions"><button class="btn small" data-unclaim="${id}" data-owner="${esc(p.key)}">Undo</button></div>
+        </div>`).join('')}`).join('')}
+    ${total ? `<div class="total">Total: ${euro(Math.round(total * 100) / 100)}</div>` : ''}`;
+}
+
+// ---------- Actions ----------
+function bind() {
+  document.getElementById('logout').onclick = logout;
+  $app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; viewing = null; editing = null; render(); scrollTo(0, 0); });
+  $app.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { viewing = b.dataset.view; render(); scrollTo(0, 0); });
+  const back = $app.querySelector('[data-back]'); if (back) back.onclick = () => { viewing = null; render(); };
+
+  const add = document.getElementById('addForm');
+  if (add) add.onsubmit = async e => {
+    e.preventDefault();
+    const title = document.getElementById('fTitle').value.trim();
+    const price = parsePrice(document.getElementById('fPrice').value);
+    if (!title) return;
+    if (Number.isNaN(price)) { toast('Price should be a number, e.g. 24,95'); return; }
+    const it = { title, created: Date.now() };
+    const link = normLink(document.getElementById('fLink').value); if (link) it.link = link;
+    if (price != null) it.price = price;
+    add.reset();
+    try { await db.update({ [`items/${me.key}/${db.newId()}`]: it }); toast('Added to your list'); }
+    catch (err) { toast('Could not save: ' + err.message); }
+  };
+
+  $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editing = b.dataset.edit; render(); });
+  const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; render(); };
+  const ed = document.getElementById('editForm');
+  if (ed) ed.onsubmit = async e => {
+    e.preventDefault();
+    const id = ed.dataset.id, old = items[me.key][id];
+    const title = document.getElementById('eTitle').value.trim();
+    const price = parsePrice(document.getElementById('ePrice').value);
+    if (!title) return;
+    if (Number.isNaN(price)) { toast('Price should be a number, e.g. 24,95'); return; }
+    const it = { title, created: old.created || Date.now() };
+    const link = normLink(document.getElementById('eLink').value); if (link) it.link = link;
+    if (price != null) it.price = price;
+    editing = null;
+    try { await db.update({ [`items/${me.key}/${id}`]: it }); toast('Saved'); }
+    catch (err) { toast('Could not save: ' + err.message); }
+  };
+
+  $app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    const id = b.dataset.del, it = items[me.key][id];
+    if (!confirm(`Remove “${it.title}” from your list?`)) return;
+    // Also remove any (hidden) claim on it, so it doesn't linger on someone's "I'm buying" list.
+    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); toast('Removed'); }
+    catch (err) { toast('Could not remove: ' + err.message); }
+  });
+
+  $app.querySelectorAll('[data-claim]').forEach(b => b.onclick = async () => {
+    b.disabled = true;
+    try {
+      const ok = await db.setIfEmpty(`claims/${viewing}/${b.dataset.claim}`, { by: me.key, at: Date.now() });
+      toast(ok ? `Ticked! ${nameOf(viewing)} won’t see this.` : 'Someone else just ticked this one.');
+    } catch (err) { toast('Could not save: ' + err.message); b.disabled = false; }
+  });
+
+  $app.querySelectorAll('[data-unclaim]').forEach(b => b.onclick = async () => {
+    const owner = b.dataset.owner || viewing, id = b.dataset.unclaim;
+    const c = claims[owner] && claims[owner][id];
+    if (!c || c.by !== me.key) return;
+    try { await db.update({ [`claims/${owner}/${id}`]: null }); toast('Un-ticked'); }
+    catch (err) { toast('Could not save: ' + err.message); }
+  });
+}
+
+// ---------- Start ----------
+(async () => {
+  $app.innerHTML = `<div class="login"><div class="logo">🎁</div><p>Loading…</p></div>`;
+  try {
+    db = cfg.firebase ? await firebaseBackend(cfg.firebase) : demoBackend();
+  } catch (e) {
+    $app.innerHTML = `<div class="login"><div class="logo">🎁</div><h1>Can’t connect</h1><p>${esc(e.message)}</p></div>`;
+    return;
+  }
+  // Stay logged in on this device, as long as the PIN hasn't been reset.
+  let saved = null;
+  try { saved = JSON.parse(store.get('sint-me')); } catch (_) {}
+  if (saved && people.some(p => p.key === saved.key)) {
+    try {
+      if ((await db.get('people/' + saved.key + '/pinHash')) === saved.h) { enter(saved.key); return; }
+    } catch (_) {}
+    store.del('sint-me');
+  }
+  renderLogin();
+})();
+</script>
+</body>
+</html>

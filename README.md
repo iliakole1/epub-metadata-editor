@@ -104,3 +104,12 @@ turning time into space.
   C = clear, S = save
 
 The camera requires HTTPS (or `localhost`), e.g. GitHub Pages at `…/slitscan/`.
+
+---
+
+## 🎁 Sinterklaas Lists (bonus app)
+
+`sinterklaas/` is a shared Sinterklaas wish-list app: everyone logs in with their name + PIN,
+keeps their own list (with optional link and price), and ticks off gifts on other people's lists.
+Ticks are visible to everyone except the person whose list it is. It uses a free Firebase
+Realtime Database. See [`sinterklaas/README.md`](sinterklaas/README.md) for setup.

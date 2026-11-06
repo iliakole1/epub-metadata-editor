@@ -1,0 +1,40 @@
+{
+  "rules": {
+    "people": {
+      ".read": true,
+      "$person": {
+        "pinHash": {
+          ".write": "!data.exists()",
+          ".validate": "newData.isString() && newData.val().length === 64"
+        },
+        "$other": { ".validate": false }
+      }
+    },
+    "items": {
+      ".read": true,
+      "$owner": {
+        "$item": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['title', 'created'])",
+          "title":   { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+          "link":    { ".validate": "newData.isString() && newData.val().length <= 2000" },
+          "price":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
+          "created": { ".validate": "newData.isNumber()" },
+          "$other":  { ".validate": false }
+        }
+      }
+    },
+    "claims": {
+      "$owner": {
+        ".read": true,
+        "$item": {
+          ".write": true,
+          ".validate": "newData.hasChildren(['by', 'at'])",
+          "by":     { ".validate": "newData.isString()" },
+          "at":     { ".validate": "newData.isNumber()" },
+          "$other": { ".validate": false }
+        }
+      }
+    }
+  }
+}
