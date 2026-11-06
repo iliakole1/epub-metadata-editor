@@ -166,9 +166,24 @@
   .mitre { width: 34%; margin: 6px 0; filter: drop-shadow(0 1.5px 0 rgba(40, 0, 0, .7)); }
   .tap { position: absolute; bottom: 10%; left: 14%; right: 7%; text-align: center; font-style: italic; color: #e8c77a; font-size: 15px; opacity: .85; animation: pulse 2.2s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
-  .inside { transform: rotateY(180deg); background: var(--noise),
-      radial-gradient(circle at 20% 30%, #7e4a2a 0 8%, transparent 9%), radial-gradient(circle at 70% 60%, #5d3a22 0 12%, transparent 13%),
-      radial-gradient(circle at 40% 80%, #8c5a33 0 10%, transparent 11%), linear-gradient(135deg, #a8774a, #6e4527); }
+  /* Inside of the front cover: red cloth turn-in around a parchment endpaper with a bookplate */
+  .inside { transform: rotateY(180deg); overflow: hidden; border-radius: 12px 4px 4px 12px;
+    background: var(--noise), linear-gradient(90deg, #6a0c13, #8a121a 60%, #5c0910); }
+  .endpaper { position: absolute; inset: 3.5% 3.5% 3.5% 3.5%; border-radius: 2px;
+    background: var(--noise),
+      repeating-linear-gradient(45deg, rgba(142, 27, 20, .06) 0 6px, transparent 6px 12px),
+      repeating-linear-gradient(-45deg, rgba(142, 27, 20, .06) 0 6px, transparent 6px 12px),
+      radial-gradient(ellipse at 50% 45%, #f6ead0, #e2cc9c);
+    box-shadow: inset 0 0 18px rgba(80, 40, 0, .3); }
+  .endpaper::before { content: ""; position: absolute; inset: 5%; border: 1.5px solid rgba(142, 27, 20, .45);
+    outline: 1px solid rgba(184, 134, 46, .5); outline-offset: 4px; border-radius: 2px; }
+  .bookplate { position: absolute; left: 50%; top: 50%; width: 56%; transform: translate(-50%, -50%);
+    padding: 7% 4% 6%; text-align: center; border-radius: 6px;
+    background: var(--noise), linear-gradient(180deg, #fbf3df, #efdfb9);
+    border: 2px solid #8e1b14; box-shadow: 0 0 0 4px #fbf3df, 0 0 0 5.5px #b8862e, 0 3px 8px rgba(60, 20, 0, .25); }
+  .bookplate .ex { font: italic 400 clamp(11px, 3vw, 14px)/1 var(--serif); color: var(--ink-soft); letter-spacing: .15em; }
+  .bookplate .owner { font: 400 clamp(22px, 6.5vw, 30px)/1.1 var(--script); color: var(--red); margin-top: 4px; }
+  .bookplate svg { width: 34%; margin: 4px auto 0; display: block; }
   .pages { position: absolute; top: 1.2%; bottom: 1.2%; right: -6px; width: 10px; border-radius: 0 6px 6px 0; transform: translateZ(-1px);
     background: repeating-linear-gradient(90deg, #efe0bd 0 1px, #d8c39a 1px 2px); }
 
@@ -757,7 +772,9 @@ function showCover(behind, closing = false) {
             </div>
             <div class="tap">tik of sleep om te openen</div>
           </div>
-          <div class="face inside"></div>
+          <div class="face inside"><div class="endpaper">
+            <div class="bookplate"><div class="ex">EX LIBRIS</div>${MITRE}<div class="owner">Sinterklaas</div></div>
+          </div></div>
         </div>
       </div>
     </div>`;
