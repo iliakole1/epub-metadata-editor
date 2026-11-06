@@ -812,6 +812,12 @@ async function openPin(key) {
   let existing;
   try { existing = await db.get('people/' + key + '/pinHash'); }
   catch (e) { drawNames('geen verbinding: ' + e.message); return; }
+  // Already logged in as this person on this device (and the PIN wasn't reset): go straight in.
+  let saved = null;
+  try { saved = JSON.parse(store.get('sint-me')); } catch (_) {}
+  if (existing && saved && saved.key === key && saved.h === existing) {
+    Sound.seal(); login(key); turn(1, render); return;
+  }
   turn(1, () => drawPin(key, !existing, existing));
 }
 
@@ -1151,16 +1157,9 @@ function bind() {
     $app.innerHTML = `<div class="sheet"><div class="center"><h1>Geen verbinding</h1><p class="err">${esc(e.message)}</p></div></div>`;
     return;
   }
-  // Stay logged in on this device, as long as the PIN hasn't been reset.
-  let saved = null;
-  try { saved = JSON.parse(store.get('sint-me')); } catch (_) {}
-  let ok = false;
-  if (saved && people.some(p => p.key === saved.key)) {
-    try { ok = (await db.get('people/' + saved.key + '/pinHash')) === saved.h; } catch (_) {}
-    if (!ok) store.del('sint-me');
-  }
-  if (ok) { login(saved.key); showCover(render); }
-  else showCover(() => drawNames());
+  // The book always opens on "Wie ben jij?". Picking your own name on a device where you're
+  // still logged in skips the PIN (see openPin).
+  showCover(() => drawNames());
 })();
 </script>
 </body>
