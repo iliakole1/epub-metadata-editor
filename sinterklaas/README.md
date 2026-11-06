@@ -1,11 +1,14 @@
-# 🎁 Sinterklaas Lists
+# 📕 Het Grote Boek van Sinterklaas
 
-A shared Sinterklaas wish-list app for a small group.
+A shared Sinterklaas wish-list app for a small group (interface in Dutch). It opens with the cover
+of the Big Book: tap to open it, pick your name, enter your PIN. Pages turn with an animation, and
+there are synthesised sound effects (mute button top right).
 
 - Everyone picks their name and protects it with a PIN (set on first login).
 - **My list**: add what you'd like, with an optional link and price; edit or delete items.
-- **Everyone**: see everyone else's lists and tick "I'll buy this". Others see who ticked what,
-  so nobody buys the same thing twice.
+- **Everyone**: see everyone else's lists and strike a wish off by swiping across it (or tapping
+  the word or the box on the left; links stay tappable). Others see who struck what, so nobody
+  buys the same thing twice. Swipe back to erase your own strike.
 - **The surprise rule**: you never see ticks on your own list. The app doesn't even download them.
 - **I'm buying**: everything you've ticked, grouped per person, with a price total.
 
