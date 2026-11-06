@@ -4,8 +4,13 @@ A shared Sinterklaas wish-list app for a small group (interface in Dutch). It op
 of the Big Book: tap to open it, pick your name, enter your PIN. Pages turn with an animation, and
 there are synthesised sound effects (mute button top right).
 
+The book reads in order: **1** your own wishes, **2** contents (everyone), then one page per person,
+and finally the gifts you're buying. Turn pages by dragging (or tapping) the folded corner at the
+bottom right; go back with the folded corner at the bottom left. The menu at the top jumps directly.
+
 - Everyone picks their name and protects it with a PIN (set on first login).
-- **My list**: add what you'd like, with an optional link and price; edit or delete items.
+- **My list**: write new wishes on the line at the bottom (like a chat), with an optional link and
+  price; edit or delete items.
 - **Everyone**: see everyone else's lists and strike a wish off by swiping across it (or tapping
   the word or the box on the left; links stay tappable). Others see who struck what, so nobody
   buys the same thing twice. Swipe back to erase your own strike.
