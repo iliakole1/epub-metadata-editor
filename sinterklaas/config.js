@@ -5,6 +5,9 @@ window.SINT_CONFIG = {
   // The people in the group. Everyone picks their own name when they open the app.
   names: ['Harrie', 'Estelle', 'Matthijs', 'Anne', 'Lea', 'Ize', 'Esmée', 'Ilia'],
 
+  // Little ones who don't log in: their parents write their wish lists for them.
+  kids: { 'Lea': ['Anne', 'Matthijs'], 'Ize': ['Anne', 'Matthijs'] },
+
   // Paste the firebaseConfig object from the Firebase console here (see README.md).
   // While this is null the app runs in demo mode: data is only stored on this device.
   firebase: {

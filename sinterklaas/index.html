@@ -225,7 +225,7 @@
 <button id="nextEar" class="dogear next" aria-label="Volgende bladzijde"></button>
 <div id="toast"></div>
 
-<script src="config.js?v=5"></script>
+<script src="config.js?v=6"></script>
 <script type="module">
 const cfg = window.SINT_CONFIG || { names: [], firebase: null };
 const FIREBASE_VERSION = '10.12.2';
@@ -269,6 +269,10 @@ const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const keyOf = n => n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
 const people = cfg.names.map(name => ({ name, key: keyOf(name) }));
+// Little ones whose lists are written by their parents: { kidKey: [parentKey, ...] }
+const guardians = Object.fromEntries(Object.entries(cfg.kids || {}).map(([kid, ps]) => [keyOf(kid), ps.map(keyOf)]));
+const isKid = key => key in guardians;
+const canWrite = key => me && (key === me.key || (guardians[key] || []).includes(me.key));
 const nameOf = key => (people.find(p => p.key === key) || { name: key }).name;
 const euro = n => '€' + (Number.isInteger(n) ? n : n.toFixed(2)).toString().replace('.', ',');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -846,7 +850,7 @@ function drawNames(err = '') {
     <div class="sheet"><div class="center">
       <h1>Wie ben jij?</h1>
       <div class="orn trio">${CARROT}${PAKJE}${PEPERNOTEN}</div>
-      <div class="names">${people.map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
+      <div class="names">${people.filter(p => !isKid(p.key)).map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
       ${db && db.demo ? `<p class="demo" style="margin-top:18px">demo — niet gedeeld</p>` : ''}
       <p class="err">${esc(err)}</p>
     </div></div>`;
@@ -986,11 +990,15 @@ function viewMine() {
         <button class="quiet" data-del="${id}" aria-label="Verwijderen">✕</button>
       </div>`;
   }).join('');
+  return html + writeForm(me.key, 'Ik wens…');
+}
+
+// The writing line at the bottom of a list (your own, or a little one's for their parents).
+function writeForm(owner, placeholder) {
   return `
-    ${html}
-    <form class="add addform" id="addForm">
+    <form class="add addform" id="addForm" data-owner="${esc(owner)}">
       <div class="writeline">
-        <input class="line" id="fTitle" placeholder="Ik wens…" maxlength="200" required enterkeyhint="send">
+        <input class="line" id="fTitle" placeholder="${esc(placeholder)}" maxlength="200" required enterkeyhint="send">
         <button class="seal" type="submit" aria-label="Toevoegen">+</button>
       </div>
       <div class="two">
@@ -1000,9 +1008,9 @@ function viewMine() {
     </form>`;
 }
 
-function editEntry(id, it) {
+function editEntry(id, it, owner = me.key) {
   return `
-    <form class="add" id="editForm" data-id="${id}" style="padding:8px 0;border-bottom:1px dashed var(--rule)">
+    <form class="add" id="editForm" data-id="${id}" data-owner="${esc(owner)}" style="padding:8px 0;border-bottom:1px dashed var(--rule)">
       <input class="line" id="eTitle" value="${esc(it.title)}" maxlength="200" required>
       <div class="two">
         <input class="line" id="eLink" value="${esc(it.link || '')}" placeholder="link" inputmode="url">
@@ -1027,14 +1035,18 @@ function viewEveryone() {
   }).join('');
 }
 
-function personEntry(owner, id, it) {
+function personEntry(owner, id, it, editable = false) {
   const c = claims[owner] && claims[owner][id];
   const state = !c ? 'free' : c.by === me.key ? 'mine' : 'taken';
+  const fresh = editable && id === justAdded;
+  if (fresh) { justAdded = null; scrollToForm = true; }
   return `
-    <div class="entry swipe ${state} ${c ? 'struck' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
+    <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
       <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}</div>
       ${c ? `<span class="by">${state === 'mine' ? 'ik' : esc(nameOf(c.by))}</span>` : ''}
+      ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
+      <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
     </div>`;
 }
 
@@ -1043,7 +1055,10 @@ function viewPerson(key) {
   return `
     <button class="back" data-back>‹ iedereen</button>
     <h2>${esc(nameOf(key))}</h2>
-    ${list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nog niets</div>`}`;
+    ${canWrite(key)
+      ? list.map(([id, it]) => editing === id ? editEntry(id, it, key) : personEntry(key, id, it, true)).join('')
+        + writeForm(key, `${nameOf(key)} wenst…`)
+      : list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nog niets</div>`}`;
 }
 
 function viewBuying() {
@@ -1092,7 +1107,7 @@ function attachStrike(entry) {
   };
 
   entry.addEventListener('pointerdown', e => {
-    if (e.target.closest('a') || e.button > 0) return;
+    if (e.target.closest('a, .quiet') || e.button > 0) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId, target: e.target };
     drag = false;
   });
@@ -1159,9 +1174,10 @@ function bind() {
     add.reset();
     document.getElementById('fTitle').focus({ preventScroll: true });   // keep writing, keyboard stays up
     Sound.write();
-    const newId = db.newId();
+    const newId = db.newId(), owner = add.dataset.owner || me.key;
+    if (!canWrite(owner)) return;
     justAdded = newId;
-    try { await db.update({ [`items/${me.key}/${newId}`]: it }); }
+    try { await db.update({ [`items/${owner}/${newId}`]: it }); }
     catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
@@ -1170,7 +1186,8 @@ function bind() {
   const ed = document.getElementById('editForm');
   if (ed) ed.onsubmit = async e => {
     e.preventDefault();
-    const id = ed.dataset.id, old = items[me.key][id];
+    const id = ed.dataset.id, owner = ed.dataset.owner || me.key, old = items[owner][id];
+    if (!canWrite(owner)) return;
     const title = document.getElementById('eTitle').value.trim();
     const price = parsePrice(document.getElementById('ePrice').value);
     if (!title) return;
@@ -1180,16 +1197,17 @@ function bind() {
     if (price != null) it.price = price;
     editing = null;
     Sound.write();
-    try { await db.update({ [`items/${me.key}/${id}`]: it }); }
+    try { await db.update({ [`items/${owner}/${id}`]: it }); }
     catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
   $app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
-    const id = b.dataset.del, it = items[me.key][id];
+    const id = b.dataset.del, owner = b.dataset.owner || me.key, it = items[owner][id];
+    if (!canWrite(owner)) return;
     if (!confirm(`“${it.title}” verwijderen?`)) return;
     Sound.erase();
     // Also remove any (hidden) claim on it, so it doesn't linger on someone's gift list.
-    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); }
+    try { await db.update({ [`items/${owner}/${id}`]: null, [`claims/${owner}/${id}`]: null }); }
     catch (err) { toast('niet verwijderd: ' + err.message); }
   });
 }

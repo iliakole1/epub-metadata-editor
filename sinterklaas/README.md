@@ -24,6 +24,10 @@ data is only saved on the device you're using.
 
 Edit the `names` list in [`config.js`](config.js).
 
+Little ones who don't log in themselves go in `kids`, with the parents who write their lists:
+`kids: { 'Lea': ['Anne', 'Matthijs'] }`. Kids don't appear on the login page; on their page the
+parents get the writing line and can edit or remove wishes, and they also see what others struck off.
+
 ## Connecting Firebase (one-time, ~5 minutes)
 
 1. Go to <https://console.firebase.google.com>, click **Create a project**, give it a name
