@@ -1,16 +1,18 @@
 <!doctype html>
-<html lang="en">
+<html lang="nl">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#f1e2c0">
+<meta name="theme-color" content="#3a1c10">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<title>Het Boek van Sinterklaas</title>
+<title>Het Grote Boek van Sinterklaas</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IM+Fell+English:ital@0;1&family=Pinyon+Script&display=swap" rel="stylesheet">
 <style>
+  @property --p { syntax: '<percentage>'; inherits: true; initial-value: 0%; }
+
   :root {
     --paper: #f1e2c0;
     --paper-dark: #d9c08f;
@@ -21,65 +23,81 @@
     --rule: rgba(80, 50, 20, .22);
     --script: "Pinyon Script", "Snell Roundhand", "Apple Chancery", cursive;
     --serif: "IM Fell English", "Iowan Old Style", Georgia, serif;
+    --noise: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .08 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+    --paperbg: var(--noise), radial-gradient(ellipse at 50% 40%, #f6ead0 0%, var(--paper) 55%, var(--paper-dark) 100%);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html { background: var(--paper); }
-  body {
-    margin: 0; min-height: 100vh; color: var(--ink);
-    font: 19px/1.35 var(--serif);
-    background:
-      url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='240' height='240'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .22 0 0 0 0 .08 0 0 0 .13 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E"),
-      radial-gradient(ellipse at 50% 40%, #f6ead0 0%, var(--paper) 55%, var(--paper-dark) 100%);
-    background-attachment: fixed;
-  }
+  body { margin: 0; min-height: 100vh; color: var(--ink); font: 19px/1.35 var(--serif); background: var(--paperbg); background-attachment: fixed; overflow-x: hidden; }
   button, input { font: inherit; color: inherit; }
   a { color: var(--red); }
 
+  /* A sheet = one page of the book */
+  .sheet { min-height: 100vh; min-height: 100dvh; background: var(--paperbg); background-attachment: fixed; }
   .page { max-width: 600px; margin: 0 auto; padding: calc(18px + env(safe-area-inset-top)) 20px calc(48px + env(safe-area-inset-bottom)); }
 
+  /* Page turning */
+  .turning { position: fixed !important; z-index: 40; overflow: hidden; pointer-events: none; background: var(--paperbg);
+    box-shadow: 0 0 30px rgba(40, 20, 0, .35); backface-visibility: hidden; will-change: transform; }
+  .turning::after { content: ""; position: absolute; inset: 0; pointer-events: none; animation: shade .75s ease-in forwards; }
+  .turning.fwd { transform-origin: 0 50%; animation: turnF .75s cubic-bezier(.5, .05, .4, 1) forwards; }
+  .turning.fwd::after { background: linear-gradient(90deg, rgba(0,0,0,0) 40%, rgba(60,30,0,.35)); }
+  .turning.back { transform-origin: 100% 50%; animation: turnB .75s cubic-bezier(.5, .05, .4, 1) forwards; }
+  .turning.back::after { background: linear-gradient(270deg, rgba(0,0,0,0) 40%, rgba(60,30,0,.35)); }
+  @keyframes turnF { 0% { transform: perspective(1800px) rotateY(0deg); } 100% { transform: perspective(1800px) rotateY(-105deg); } }
+  @keyframes turnB { 0% { transform: perspective(1800px) rotateY(0deg); } 100% { transform: perspective(1800px) rotateY(105deg); } }
+  @keyframes shade { from { opacity: 0; } to { opacity: 1; } }
+
   /* Title block */
-  .title { text-align: center; margin-bottom: 4px; }
-  .title h1 { font: 400 36px/1.05 var(--script); color: var(--red); margin: 0; }
+  .title { text-align: center; margin: 0 40px 2px; }
+  .title h1 { font: 400 34px/1.05 var(--script); color: var(--red); margin: 0; }
   .orn { text-align: center; color: var(--gold); letter-spacing: .4em; font-size: 15px; margin: 2px 0 6px; }
   .who { text-align: center; font-style: italic; color: var(--ink-soft); font-size: 15px; }
   .who button { background: none; border: 0; padding: 0; color: var(--ink-soft); text-decoration: underline; cursor: pointer; font-style: italic; }
 
-  nav { display: flex; justify-content: center; align-items: center; gap: 6px; margin: 14px 0 18px; font-size: 17px; }
-  nav button { background: none; border: 0; padding: 4px 6px; cursor: pointer; color: var(--ink-soft); font-variant: small-caps; letter-spacing: .04em; }
+  nav { display: flex; justify-content: center; align-items: center; gap: 4px; margin: 14px 0 18px; font-size: 17px; }
+  nav button { background: none; border: 0; padding: 4px 5px; cursor: pointer; color: var(--ink-soft); font-variant: small-caps; letter-spacing: .03em; }
   nav button.on { color: var(--red); border-bottom: 1.5px solid var(--red); }
   nav .dot { color: var(--gold); font-size: 13px; }
 
-  h2 { font: 400 40px/1.1 var(--script); color: var(--ink); text-align: center; margin: 6px 0 10px; }
+  h2 { font: 400 42px/1.1 var(--script); color: var(--ink); text-align: center; margin: 6px 0 10px; }
   h3 { font: 400 32px/1.1 var(--script); color: var(--ink); margin: 22px 0 4px; }
   .demo { text-align: center; font-style: italic; font-size: 13px; color: var(--ink-soft); margin-bottom: 8px; }
 
-  /* Entries written on ruled lines */
+  /* Entries on ruled lines */
   .entry { display: flex; align-items: center; gap: 12px; padding: 11px 2px; border-bottom: 1px dashed var(--rule); }
+  .entry.swipe { touch-action: pan-y; user-select: none; -webkit-user-select: none; cursor: pointer; }
   .entry .body { flex: 1; min-width: 0; }
-  .entry .what { word-wrap: break-word; }
   .entry .meta { font-size: 15px; font-style: italic; color: var(--ink-soft); display: flex; gap: 10px; flex-wrap: wrap; }
   .entry .meta a { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 220px; display: inline-block; vertical-align: bottom; }
-  .struck .what, .struck .meta > span {
-    text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: var(--ink-soft);
-  }
+  .txt { position: relative; display: inline-block; word-wrap: break-word; max-width: 100%; transition: color .3s; }
+  .ink { position: absolute; left: -3%; top: 50%; width: 106%; height: 16px; margin-top: -7px; pointer-events: none; overflow: visible;
+    clip-path: inset(-20% calc(100% - var(--p)) -20% 0); }
+  .entry.anim { transition: --p .35s ease-out; }
+  .entry.struck { --p: 100%; }
+  .entry.struck .txt, .entry.struck .meta > span { color: var(--ink-soft); }
   .by { font: 400 24px/1 var(--script); color: var(--red); white-space: nowrap; }
+  .entry.shake { animation: shake .35s; }
+  @keyframes shake { 25% { transform: translateX(-5px); } 50% { transform: translateX(5px); } 75% { transform: translateX(-3px); } }
 
-  /* Ink checkbox */
+  /* Ink check box in the margin */
   .box { width: 30px; height: 30px; flex: none; border: 1.5px solid var(--ink); border-radius: 3px; background: transparent;
     cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--red); font: 26px/1 var(--script); }
-  .box:disabled { cursor: default; border-color: var(--ink-soft); }
+  .entry.taken .box { border-color: var(--ink-soft); cursor: default; }
 
   .quiet { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-size: 18px; padding: 4px 6px; }
 
   /* Writing lines (forms) */
   form.add { display: grid; gap: 6px; margin-bottom: 10px; }
-  .line { width: 100%; border: 0; border-bottom: 1.5px solid var(--ink-soft); background: transparent; padding: 8px 2px; outline: none; }
+  .line { width: 100%; border: 0; border-bottom: 1.5px solid var(--ink-soft); background: transparent; padding: 8px 2px; outline: none; border-radius: 0; }
   .line::placeholder { color: var(--ink-soft); opacity: .6; font-style: italic; }
   .line:focus { border-bottom-color: var(--red); }
   .two { display: grid; grid-template-columns: 1fr 100px; gap: 12px; }
-  .formrow { display: flex; justify-content: flex-end; gap: 10px; align-items: center; margin-top: 6px; }
-  .seal { width: 54px; height: 54px; border-radius: 50%; border: 0; cursor: pointer; color: #f5d9a8; font: 30px/1 var(--serif);
-    background: radial-gradient(circle at 35% 30%, #c0392b, #7d1410 70%); box-shadow: 0 2px 5px rgba(60, 10, 0, .4), inset 0 0 0 4px rgba(0,0,0,.12); }
+  .formrow { display: flex; justify-content: flex-end; gap: 14px; align-items: center; margin-top: 6px; }
+  .seal { width: 56px; height: 56px; border-radius: 50%; border: 0; cursor: pointer; color: #f5d9a8; font: 30px/1 var(--serif);
+    background: radial-gradient(circle at 35% 30%, #c0392b, #7d1410 70%);
+    box-shadow: 0 2px 5px rgba(60, 10, 0, .4), inset 0 0 0 4px rgba(0,0,0,.12), inset 0 0 0 6px rgba(255,200,150,.12); transition: transform .12s; }
+  .seal:active { transform: scale(.9); }
   .textbtn { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-style: italic; text-decoration: underline; }
 
   .person { display: flex; align-items: baseline; gap: 10px; padding: 8px 2px; border-bottom: 1px dashed var(--rule); cursor: pointer; }
@@ -89,29 +107,74 @@
   .empty { text-align: center; font-style: italic; color: var(--ink-soft); padding: 22px 0; }
   .total { text-align: right; font-style: italic; margin-top: 14px; }
 
-  /* Login */
-  .login { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; text-align: center; }
-  .login h1 { font: 400 54px/1 var(--script); color: var(--red); margin: 0; }
+  /* Names + PIN pages */
+  .center { min-height: 100vh; min-height: 100dvh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 24px 20px; text-align: center; }
+  .center h1 { font: 400 50px/1.05 var(--script); color: var(--red); margin: 0; }
   .names { display: grid; grid-template-columns: 1fr 1fr; gap: 0 24px; width: 100%; max-width: 380px; margin-top: 10px; }
   .names button { background: none; border: 0; border-bottom: 1px dashed var(--rule); padding: 8px 0; cursor: pointer; font: 400 34px/1.2 var(--script); color: var(--ink); }
   .pin { width: 200px; text-align: center; letter-spacing: .5em; font-size: 26px; margin-top: 10px; }
+  .pin::placeholder { letter-spacing: normal; font-size: 19px; }
   .err { color: var(--red); font-style: italic; min-height: 24px; margin: 8px 0 0; font-size: 16px; }
-  .login .formrow { justify-content: center; gap: 22px; }
+  .center .formrow { justify-content: center; gap: 22px; }
+
+  /* ---------- The book cover ---------- */
+  #coverWrap { position: fixed; inset: 0; z-index: 50; display: grid; place-items: center; perspective: 2200px;
+    background: radial-gradient(ellipse at 50% 45%, #5b3520 0%, #2e170b 75%, #1c0d05 100%); transition: opacity .6s .5s; }
+  #coverWrap.opening { opacity: 0; }
+  .cover { position: relative; width: min(82vw, 400px); aspect-ratio: 3 / 4.15; transform-style: preserve-3d; transform-origin: 0 50%;
+    transition: transform 1.15s cubic-bezier(.55, .05, .3, 1); cursor: pointer; }
+  #coverWrap.opening .cover { transform: rotateY(-165deg); }
+  .face { position: absolute; inset: 0; backface-visibility: hidden; -webkit-backface-visibility: hidden; border-radius: 4px 12px 12px 4px; }
+  .front { overflow: hidden;
+    background: var(--noise), radial-gradient(ellipse at 35% 25%, #b8232c 0%, #8a121a 45%, #5c0910 100%);
+    box-shadow: 0 30px 60px rgba(0,0,0,.6), inset 0 0 40px rgba(0,0,0,.45), inset -3px 0 0 rgba(255,255,255,.06); }
+  .front::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 9%;
+    background: repeating-linear-gradient(180deg, rgba(0,0,0,.0) 0 18%, rgba(0,0,0,.35) 18% 19.5%, rgba(255,210,140,.12) 19.5% 20.5%),
+                linear-gradient(90deg, rgba(0,0,0,.45), rgba(0,0,0,.1) 70%, rgba(255,255,255,.05)); }
+  .frame { position: absolute; inset: 7% 7% 7% 14%; border: 3px double #d6ab4f; border-radius: 6px;
+    box-shadow: 0 0 0 5px rgba(0,0,0,.12), inset 0 0 0 7px rgba(214, 171, 79, .25); }
+  .corner { position: absolute; color: #d6ab4f; font-size: 26px; line-height: 1; }
+  .corner.tl { top: 5.5%; left: 12.5%; } .corner.tr { top: 5.5%; right: 5.5%; transform: scaleX(-1); }
+  .corner.bl { bottom: 5.5%; left: 12.5%; transform: scaleY(-1); } .corner.br { bottom: 5.5%; right: 5.5%; transform: scale(-1); }
+  .cover-text { position: absolute; inset: 7% 7% 7% 14%; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; gap: 4px; }
+  .gold { background: linear-gradient(180deg, #fbe9a8 0%, #d9a640 45%, #a87420 55%, #f3d27e 100%); -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 1.5px 0 rgba(40, 0, 0, .7)); padding: 0 .15em; }
+  .cover-text .big { font: 400 clamp(46px, 13vw, 64px)/1 var(--script); }
+  .cover-text .small { font: 400 clamp(28px, 8vw, 38px)/1.1 var(--script); }
+  .mitre { width: 34%; margin: 6px 0; filter: drop-shadow(0 1.5px 0 rgba(40, 0, 0, .7)); }
+  .tap { position: absolute; bottom: 10%; left: 14%; right: 7%; text-align: center; font-style: italic; color: #e8c77a; font-size: 15px; opacity: .85; animation: pulse 2.2s ease-in-out infinite; }
+  @keyframes pulse { 50% { opacity: .35; } }
+  .inside { transform: rotateY(180deg); background: var(--noise),
+      radial-gradient(circle at 20% 30%, #7e4a2a 0 8%, transparent 9%), radial-gradient(circle at 70% 60%, #5d3a22 0 12%, transparent 13%),
+      radial-gradient(circle at 40% 80%, #8c5a33 0 10%, transparent 11%), linear-gradient(135deg, #a8774a, #6e4527); }
+  .pages { position: absolute; top: 1.2%; bottom: 1.2%; right: -6px; width: 10px; border-radius: 0 6px 6px 0; transform: translateZ(-1px);
+    background: repeating-linear-gradient(90deg, #efe0bd 0 1px, #d8c39a 1px 2px); }
+
+  #mute { position: fixed; top: calc(10px + env(safe-area-inset-top)); right: 10px; z-index: 45; width: 38px; height: 38px; border-radius: 50%;
+    border: 1px solid var(--rule); background: rgba(241, 226, 192, .8); cursor: pointer; font-size: 17px; display: none; }
 
   #toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--ink); color: var(--paper); padding: 8px 18px; border-radius: 4px; font-style: italic; font-size: 16px;
-    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 20; max-width: 90vw; }
+    opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; max-width: 90vw; }
   #toast.show { opacity: 1; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .turning { display: none; }
+    .cover, #coverWrap { transition-duration: .01s !important; }
+  }
 </style>
 </head>
 <body>
 <div id="app"></div>
+<button id="mute" aria-label="Geluid aan/uit">🔊</button>
 <div id="toast"></div>
 
-<script src="config.js"></script>
+<script src="config.js?v=4"></script>
 <script type="module">
 const cfg = window.SINT_CONFIG || { names: [], firebase: null };
 const FIREBASE_VERSION = '10.12.2';
+const TITLE = 'Het Grote Boek van Sinterklaas';
+const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 // ---------- Helpers ----------
 const $app = document.getElementById('app');
@@ -120,6 +183,7 @@ const keyOf = n => n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '
 const people = cfg.names.map(name => ({ name, key: keyOf(name) }));
 const nameOf = key => (people.find(p => p.key === key) || { name: key }).name;
 const euro = n => '€' + (Number.isInteger(n) ? n : n.toFixed(2)).toString().replace('.', ',');
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 let toastTimer;
 function toast(msg) {
   const t = document.getElementById('toast'); t.textContent = msg; t.classList.add('show');
@@ -130,10 +194,7 @@ async function hashPin(personKey, pin) {
   const buf = await crypto.subtle.digest('SHA-256', data);
   return [...new Uint8Array(buf)].map(b => b.toString(16).padStart(2, '0')).join('');
 }
-function normLink(s) {
-  s = s.trim(); if (!s) return '';
-  return /^https?:\/\//i.test(s) ? s : 'https://' + s;
-}
+function normLink(s) { s = s.trim(); if (!s) return ''; return /^https?:\/\//i.test(s) ? s : 'https://' + s; }
 function parsePrice(s) {
   s = String(s).replace(/[€\s]/g, '').replace(',', '.');
   if (!s) return null;
@@ -145,6 +206,77 @@ const store = {
   set(k, v) { try { localStorage.setItem(k, v); } catch (_) {} },
   del(k) { try { localStorage.removeItem(k); } catch (_) {} },
 };
+
+// ---------- Sound (synthesised, no audio files) ----------
+const Sound = (() => {
+  let ctx = null, noiseBuf = null, master = null, muted = store.get('sint-mute') === '1';
+  let scratch = null;
+  function ac() {
+    if (!ctx) {
+      const AC = window.AudioContext || window.webkitAudioContext; if (!AC) return null;
+      ctx = new AC();
+      master = ctx.createGain(); master.gain.value = muted ? 0 : 1; master.connect(ctx.destination);
+      const len = ctx.sampleRate * 2; noiseBuf = ctx.createBuffer(1, len, ctx.sampleRate);
+      const d = noiseBuf.getChannelData(0); for (let i = 0; i < len; i++) d[i] = Math.random() * 2 - 1;
+    }
+    if (ctx.state === 'suspended') ctx.resume();
+    return ctx;
+  }
+  function env(g, t, peak, attack, dur) {
+    g.gain.setValueAtTime(0.0001, t);
+    g.gain.exponentialRampToValueAtTime(peak, t + attack);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + dur);
+  }
+  function noise({ dur, f0, f1 = f0, q = 1, gain = .3, attack = .01, delay = 0, type = 'bandpass' }) {
+    const c = ac(); if (!c) return; const t = c.currentTime + delay;
+    const src = c.createBufferSource(); src.buffer = noiseBuf;
+    const f = c.createBiquadFilter(); f.type = type; f.Q.value = q;
+    f.frequency.setValueAtTime(f0, t); f.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = c.createGain(); env(g, t, gain, attack, dur);
+    src.connect(f).connect(g).connect(master); src.start(t, Math.random() * 1.5); src.stop(t + dur + .05);
+  }
+  function tone({ freq, f1 = freq, dur, gain = .3, type = 'sine', attack = .005, delay = 0 }) {
+    const c = ac(); if (!c) return; const t = c.currentTime + delay;
+    const o = c.createOscillator(); o.type = type;
+    o.frequency.setValueAtTime(freq, t); o.frequency.exponentialRampToValueAtTime(f1, t + dur);
+    const g = c.createGain(); env(g, t, gain, attack, dur);
+    o.connect(g).connect(master); o.start(t); o.stop(t + dur + .05);
+  }
+  return {
+    unlock: ac,
+    get muted() { return muted; },
+    toggle() { muted = !muted; store.set('sint-mute', muted ? '1' : '0'); if (master) master.gain.value = muted ? 0 : 1; return muted; },
+    page() { noise({ dur: .45, f0: 600, f1: 2600, q: .6, gain: .22, attack: .12 }); noise({ dur: .14, f0: 2400, f1: 900, q: .9, gain: .16, delay: .36 }); },
+    open() { tone({ freq: 85, f1: 40, dur: .45, gain: .5, attack: .01, delay: .05 }); noise({ dur: .9, f0: 400, f1: 2000, q: .5, gain: .18, attack: .25 }); noise({ dur: .25, f0: 180, f1: 90, q: .7, gain: .35, type: 'lowpass', delay: .02 }); },
+    seal() { tone({ freq: 160, f1: 60, dur: .16, gain: .45 }); noise({ dur: .08, f0: 1200, q: .8, gain: .18 }); },
+    strike() { noise({ dur: .28, f0: 2600, f1: 4200, q: 2.5, gain: .2, attack: .02 }); },
+    erase() { noise({ dur: .3, f0: 900, f1: 600, q: 1.2, gain: .16, attack: .04 }); },
+    tap() { tone({ freq: 1100, f1: 700, dur: .05, gain: .12 }); },
+    nope() { tone({ freq: 220, f1: 160, dur: .18, gain: .14, type: 'triangle' }); },
+    // Continuous quill scratch while dragging
+    scratchStart() {
+      const c = ac(); if (!c || scratch) return;
+      const src = c.createBufferSource(); src.buffer = noiseBuf; src.loop = true;
+      const f = c.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 3200; f.Q.value = 2.2;
+      const g = c.createGain(); g.gain.value = 0;
+      src.connect(f).connect(g).connect(master); src.start();
+      scratch = { src, f, g };
+    },
+    scratchMove(speed) {
+      if (!scratch) return; const t = ctx.currentTime;
+      scratch.g.gain.setTargetAtTime(clamp(speed / 2.5, 0, .35), t, .03);
+      scratch.f.frequency.setTargetAtTime(2600 + clamp(speed, 0, 3) * 700 + Math.random() * 300, t, .03);
+    },
+    scratchStop() {
+      if (!scratch) return; const s = scratch; scratch = null;
+      s.g.gain.setTargetAtTime(0, ctx.currentTime, .04); setTimeout(() => s.src.stop(), 200);
+    },
+  };
+})();
+const muteBtn = document.getElementById('mute');
+const syncMute = () => { muteBtn.textContent = Sound.muted ? '🔇' : '🔊'; };
+muteBtn.onclick = () => { Sound.toggle(); syncMute(); };
+syncMute();
 
 // ---------- Backends ----------
 // Both expose: get(path), update({path: value}), on(path, cb) -> unsubscribe,
@@ -158,7 +290,7 @@ async function firebaseBackend(conf) {
     demo: false,
     get: async p => (await f.get(f.ref(db, p))).val(),
     update: o => f.update(f.ref(db), o),
-    on: (p, cb) => f.onValue(f.ref(db, p), s => cb(s.val()), e => { console.error(e); toast('Connection problem: ' + e.message); }),
+    on: (p, cb) => f.onValue(f.ref(db, p), s => cb(s.val()), e => { console.error(e); toast('verbindingsprobleem: ' + e.message); }),
     newId: () => f.push(f.ref(db, 'ids')).key,
     setIfEmpty: async (p, v) => (await f.runTransaction(f.ref(db, p), cur => (cur === null ? v : undefined))).committed,
   };
@@ -197,6 +329,8 @@ let editing = null;                  // item id being edited (my list)
 let items = {};                      // items[ownerKey][itemId]
 let claims = {};                     // claims[ownerKey][itemId] — NEVER loaded for my own list
 let subs = [];
+let dragging = false, pendingRender = false;
+const TABS = ['mine', 'everyone', 'buying'];
 
 function subscribe() {
   subs.forEach(u => u()); subs = [];
@@ -208,79 +342,145 @@ function subscribe() {
   }
 }
 
+// ---------- Page turning ----------
+// Snapshot the current page, draw the new one underneath, then flip the snapshot away.
+function turn(dir, draw) {
+  const old = $app.querySelector('.sheet');
+  if (!old || reduceMotion) { draw(); Sound.page(); return; }
+  const scrolled = scrollY;
+  const clone = old.cloneNode(true);
+  clone.querySelectorAll('[id]').forEach(e => e.removeAttribute('id'));
+  clone.querySelectorAll('form.add').forEach(e => e.classList.remove('add'));
+  clone.setAttribute('inert', '');
+  clone.classList.add('turning', dir > 0 ? 'fwd' : 'back');
+  Object.assign(clone.style, { left: '0px', top: '0px', width: '100vw', height: '100vh' });
+  draw();
+  scrollTo(0, 0);
+  document.body.appendChild(clone);
+  clone.scrollTop = scrolled;               // keep showing what was on screen
+  Sound.page();
+  clone.addEventListener('animationend', e => { if (e.target === clone) clone.remove(); });
+  setTimeout(() => clone.remove(), 1200);
+}
+
+// ---------- Cover ----------
+const MITRE = `<svg class="mitre" viewBox="0 0 100 120" aria-hidden="true">
+  <defs><linearGradient id="gm" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fbe9a8"/><stop offset=".5" stop-color="#d4a03c"/><stop offset="1" stop-color="#f0cc72"/></linearGradient></defs>
+  <path d="M50 4 C66 22 80 42 80 74 L80 104 L20 104 L20 74 C20 42 34 22 50 4 Z" fill="none" stroke="url(#gm)" stroke-width="4"/>
+  <path d="M22 84 L78 84" stroke="url(#gm)" stroke-width="4"/>
+  <path d="M50 30 L50 70 M36 46 L64 46" stroke="url(#gm)" stroke-width="6" stroke-linecap="round"/>
+  <path d="M30 104 L24 118 M70 104 L76 118" stroke="url(#gm)" stroke-width="3.5" stroke-linecap="round"/>
+</svg>`;
+
+function showCover(behind) {
+  behind();                                   // the first page, waiting under the cover
+  const wrap = document.createElement('div');
+  wrap.id = 'coverWrap';
+  wrap.innerHTML = `
+    <div class="cover" role="button" aria-label="Open het boek" tabindex="0">
+      <div class="pages"></div>
+      <div class="face front">
+        <div class="frame"></div>
+        <span class="corner tl">❦</span><span class="corner tr">❦</span><span class="corner bl">❦</span><span class="corner br">❦</span>
+        <div class="cover-text">
+          <div class="gold small">Het</div>
+          <div class="gold big">Grote Boek</div>
+          ${MITRE}
+          <div class="gold small">van Sinterklaas</div>
+        </div>
+        <div class="tap">tik om te openen</div>
+      </div>
+      <div class="face inside"></div>
+    </div>`;
+  document.body.appendChild(wrap);
+  muteBtn.style.display = 'none';
+  const open = () => {
+    if (wrap.classList.contains('opening')) return;
+    Sound.unlock(); Sound.open();
+    wrap.classList.add('opening');
+    setTimeout(() => { wrap.remove(); muteBtn.style.display = 'block'; }, reduceMotion ? 50 : 1250);
+  };
+  wrap.querySelector('.cover').addEventListener('click', open);
+  wrap.querySelector('.cover').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') open(); });
+}
+
+// ---------- Names + PIN ----------
+function drawNames(err = '') {
+  $app.innerHTML = `
+    <div class="sheet"><div class="center">
+      <h1>Wie ben jij?</h1>
+      <div class="orn">❦ ❦ ❦</div>
+      <div class="names">${people.map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
+      ${db && db.demo ? `<p class="demo" style="margin-top:18px">demo — niet gedeeld</p>` : ''}
+      <p class="err">${esc(err)}</p>
+    </div></div>`;
+  $app.querySelectorAll('[data-person]').forEach(b => b.onclick = () => openPin(b.dataset.person));
+}
+
+async function openPin(key) {
+  let existing;
+  try { existing = await db.get('people/' + key + '/pinHash'); }
+  catch (e) { drawNames('geen verbinding: ' + e.message); return; }
+  turn(1, () => drawPin(key, !existing, existing));
+}
+
+function drawPin(key, isNew, existing) {
+  const name = nameOf(key);
+  $app.innerHTML = `
+    <div class="sheet"><div class="center">
+      <form autocomplete="off">
+        <h1>${esc(name)}</h1>
+        <div class="orn">❦</div>
+        <input class="line pin" id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="${isNew ? 'nieuwe pincode' : 'pincode'}">
+        ${isNew ? `<br><input class="line pin" id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="nogmaals">` : ''}
+        <p class="err" id="err"></p>
+        <div class="formrow">
+          <button type="button" class="textbtn" id="back">terug</button>
+          <button type="submit" class="seal" aria-label="Verder">✓</button>
+        </div>
+      </form>
+    </div></div>`;
+  const errEl = document.getElementById('err');
+  const fail = m => { errEl.textContent = m; Sound.nope(); };
+  setTimeout(() => { const el = document.getElementById('pin1'); if (el) el.focus(); }, reduceMotion ? 0 : 400);
+  document.getElementById('back').onclick = () => turn(-1, () => drawNames());
+  $app.querySelector('form').onsubmit = async e => {
+    e.preventDefault();
+    const pin = document.getElementById('pin1').value.trim();
+    if (!/^\d{4,8}$/.test(pin)) return fail('4 tot 8 cijfers');
+    const h = await hashPin(key, pin);
+    if (isNew) {
+      if (document.getElementById('pin2').value.trim() !== pin) return fail('pincodes komen niet overeen');
+      let ok = false;
+      try { ok = await db.setIfEmpty('people/' + key + '/pinHash', h); } catch (err) { return fail(err.message); }
+      if (!ok) return fail('pincode is net ingesteld — ga terug');
+    } else if (h !== existing) {
+      return fail('verkeerde pincode');
+    }
+    Sound.seal();
+    store.set('sint-me', JSON.stringify({ key, h }));
+    login(key);
+    turn(1, render);
+  };
+}
+
+function login(key) {
+  me = { key, name: nameOf(key) };
+  tab = 'mine'; viewing = null; editing = null;
+  subscribe();
+}
+
 function logout() {
   subs.forEach(u => u()); subs = [];
   me = null; items = {}; claims = {}; viewing = null; editing = null; tab = 'mine';
   store.del('sint-me');
-  renderLogin();
-}
-
-// ---------- Login ----------
-const TITLE = 'Het Boek van Sinterklaas';
-
-function renderLogin(err = '') {
-  $app.innerHTML = `
-    <div class="login">
-      <h1>${TITLE}</h1>
-      <div class="orn">❦ ❦ ❦</div>
-      <div class="names">${people.map(p => `<button data-person="${esc(p.key)}">${esc(p.name)}</button>`).join('')}</div>
-      ${db && db.demo ? `<p class="demo" style="margin-top:18px">demo — not shared yet</p>` : ''}
-      <p class="err">${esc(err)}</p>
-    </div>`;
-  $app.querySelectorAll('[data-person]').forEach(b => b.onclick = () => renderPin(b.dataset.person));
-}
-
-async function renderPin(key) {
-  const name = nameOf(key);
-  $app.innerHTML = `<div class="login"><h1>${esc(name)}</h1></div>`;
-  let existing;
-  try { existing = await db.get('people/' + key + '/pinHash'); }
-  catch (e) { renderLogin('No connection: ' + e.message); return; }
-  const isNew = !existing;
-  $app.innerHTML = `
-    <div class="login">
-      <form autocomplete="off">
-        <h1>${esc(name)}</h1>
-        <div class="orn">❦</div>
-        <input class="line pin" id="pin1" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="${isNew ? 'new PIN' : 'PIN'}" autofocus>
-        ${isNew ? `<br><input class="line pin" id="pin2" type="password" inputmode="numeric" pattern="[0-9]*" maxlength="8" placeholder="again">` : ''}
-        <p class="err" id="err"></p>
-        <div class="formrow">
-          <button type="button" class="textbtn" id="back">back</button>
-          <button type="submit" class="seal" aria-label="Enter">✓</button>
-        </div>
-      </form>
-    </div>`;
-  const errEl = document.getElementById('err');
-  document.getElementById('back').onclick = () => renderLogin();
-  $app.querySelector('form').onsubmit = async e => {
-    e.preventDefault();
-    const pin = document.getElementById('pin1').value.trim();
-    if (!/^\d{4,8}$/.test(pin)) { errEl.textContent = '4–8 digits'; return; }
-    const h = await hashPin(key, pin);
-    if (isNew) {
-      if (document.getElementById('pin2').value.trim() !== pin) { errEl.textContent = 'PINs don’t match'; return; }
-      let ok = false;
-      try { ok = await db.setIfEmpty('people/' + key + '/pinHash', h); } catch (err) { errEl.textContent = err.message; return; }
-      if (!ok) { errEl.textContent = 'PIN was just set — go back and retry'; return; }
-    } else if (h !== existing) {
-      errEl.textContent = 'Wrong PIN'; return;
-    }
-    store.set('sint-me', JSON.stringify({ key, h }));
-    enter(key);
-  };
-}
-
-function enter(key) {
-  me = { key, name: nameOf(key) };
-  tab = 'mine'; viewing = null; editing = null;
-  subscribe();
-  render();
+  turn(-1, () => drawNames());
 }
 
 // ---------- Main views ----------
 function render() {
   if (!me) return;
+  if (dragging) { pendingRender = true; return; }
   const active = document.activeElement;
   const keepFocus = active && active.closest && active.closest('form.add') ? active.id : null;
   // Keep whatever is typed in a form when live updates re-render the page.
@@ -289,14 +489,14 @@ function render() {
 
   const tabBtn = (t, label) => `<button data-tab="${t}" class="${tab === t ? 'on' : ''}">${label}</button>`;
   $app.innerHTML = `
-    <div class="page">
+    <div class="sheet"><div class="page">
       <div class="title"><h1>${TITLE}</h1></div>
       <div class="orn">❦ ❦ ❦</div>
-      <div class="who">${esc(me.name)} · <button id="logout">leave</button></div>
-      <nav>${tabBtn('mine', 'my wishes')}<span class="dot">✦</span>${tabBtn('everyone', 'everyone')}<span class="dot">✦</span>${tabBtn('buying', 'my gifts')}</nav>
-      ${db.demo ? `<div class="demo">demo — not shared yet</div>` : ''}
+      <div class="who">${esc(me.name)} · <button id="logout">uitloggen</button></div>
+      <nav>${tabBtn('mine', 'mijn wensen')}<span class="dot">✦</span>${tabBtn('everyone', 'iedereen')}<span class="dot">✦</span>${tabBtn('buying', 'mijn cadeaus')}</nav>
+      ${db.demo ? `<div class="demo">demo — niet gedeeld</div>` : ''}
       ${tab === 'mine' ? viewMine() : tab === 'everyone' ? (viewing ? viewPerson(viewing) : viewEveryone()) : viewBuying()}
-    </div>`;
+    </div></div>`;
 
   document.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el) el.focus(); }
@@ -314,23 +514,29 @@ function itemMeta(it) {
   return bits.length ? `<div class="meta">${bits.join('')}</div>` : '';
 }
 
+// A slightly wobbly, hand-drawn ink stroke.
+const INK = `<svg class="ink" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
+  <path d="M1 9.5 C 12 7.2, 22 10.6, 34 8.4 S 58 6.8, 70 9.2 S 90 8.6, 99 6.9" fill="none" stroke="#8e1b14" stroke-width="2.6" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+  <path d="M3 10.6 C 18 9.6, 40 10.4, 62 9.4 S 88 9.6, 97 8.4" fill="none" stroke="#8e1b14" stroke-width="1.1" stroke-linecap="round" opacity=".55" vector-effect="non-scaling-stroke"/>
+</svg>`;
+
 function viewMine() {
   const list = sortedItems(me.key);
   return `
     <form class="add" id="addForm">
-      <input class="line" id="fTitle" placeholder="I wish for…" maxlength="200" required>
+      <input class="line" id="fTitle" placeholder="Ik wens…" maxlength="200" required>
       <div class="two">
         <input class="line" id="fLink" placeholder="link" inputmode="url">
         <input class="line" id="fPrice" placeholder="€" inputmode="decimal">
       </div>
-      <div class="formrow"><button class="seal" type="submit" aria-label="Add">+</button></div>
+      <div class="formrow"><button class="seal" type="submit" aria-label="Toevoegen">+</button></div>
     </form>
     ${list.length ? list.map(([id, it]) => editing === id ? editEntry(id, it) : `
       <div class="entry">
-        <div class="body"><div class="what">${esc(it.title)}</div>${itemMeta(it)}</div>
-        <button class="quiet" data-edit="${id}" aria-label="Edit">✎</button>
-        <button class="quiet" data-del="${id}" aria-label="Delete">✕</button>
-      </div>`).join('') : `<div class="empty">nothing yet</div>`}`;
+        <div class="body"><div><span class="txt">${esc(it.title)}</span></div>${itemMeta(it)}</div>
+        <button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
+        <button class="quiet" data-del="${id}" aria-label="Verwijderen">✕</button>
+      </div>`).join('') : `<div class="empty">nog niets</div>`}`;
 }
 
 function editEntry(id, it) {
@@ -342,8 +548,8 @@ function editEntry(id, it) {
         <input class="line" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€" inputmode="decimal">
       </div>
       <div class="formrow">
-        <button class="textbtn" type="button" id="cancelEdit">cancel</button>
-        <button class="seal" type="submit" aria-label="Save">✓</button>
+        <button class="textbtn" type="button" id="cancelEdit">annuleren</button>
+        <button class="seal" type="submit" aria-label="Opslaan">✓</button>
       </div>
     </form>`;
 }
@@ -362,24 +568,21 @@ function viewEveryone() {
 
 function personEntry(owner, id, it) {
   const c = claims[owner] && claims[owner][id];
-  const mine = c && c.by === me.key;
-  const box = !c ? `<button class="box" data-claim="${id}" aria-label="I'll buy this"></button>`
-    : mine ? `<button class="box" data-unclaim="${id}" data-owner="${esc(owner)}" aria-label="Undo">✗</button>`
-    : `<button class="box" disabled aria-label="Taken">✗</button>`;
+  const state = !c ? 'free' : c.by === me.key ? 'mine' : 'taken';
   return `
-    <div class="entry ${c ? 'struck' : ''}">
-      ${box}
-      <div class="body"><div class="what">${esc(it.title)}</div>${itemMeta(it)}</div>
-      ${c ? `<span class="by">${mine ? 'me' : esc(nameOf(c.by))}</span>` : ''}
+    <div class="entry swipe ${state} ${c ? 'struck' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
+      <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
+      <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}</div>
+      ${c ? `<span class="by">${state === 'mine' ? 'ik' : esc(nameOf(c.by))}</span>` : ''}
     </div>`;
 }
 
 function viewPerson(key) {
   const list = sortedItems(key);
   return `
-    <button class="back" data-back>‹ everyone</button>
+    <button class="back" data-back>‹ iedereen</button>
     <h2>${esc(nameOf(key))}</h2>
-    ${list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nothing yet</div>`}`;
+    ${list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nog niets</div>`}`;
 }
 
 function viewBuying() {
@@ -391,16 +594,100 @@ function viewBuying() {
     mine.forEach(([, it]) => { if (it.price != null) total += it.price; });
     out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it)).join('');
   }
-  if (!out) return `<div class="empty">no gifts chosen yet</div>`;
-  return out + (total ? `<div class="total">total ${euro(Math.round(total * 100) / 100)}</div>` : '');
+  if (!out) return `<div class="empty">nog geen cadeaus gekozen</div>`;
+  return out + (total ? `<div class="total">totaal ${euro(Math.round(total * 100) / 100)}</div>` : '');
 }
 
-// ---------- Actions ----------
+// ---------- Striking off: swipe across, or tap the word / the box ----------
+async function claim(owner, id) {
+  try {
+    const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: me.key, at: Date.now() });
+    if (!ok) { toast('al gekozen'); Sound.nope(); render(); }
+  } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+}
+async function unclaim(owner, id) {
+  const c = claims[owner] && claims[owner][id];
+  if (!c || c.by !== me.key) return;
+  try { await db.update({ [`claims/${owner}/${id}`]: null }); }
+  catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+}
+
+function setP(entry, frac, animate) {
+  entry.classList.toggle('anim', !!animate);
+  entry.style.setProperty('--p', (frac * 100).toFixed(1) + '%');
+}
+
+function attachStrike(entry) {
+  const { owner, id, state } = entry.dataset;
+  const txt = entry.querySelector('.txt');
+  let start = null, drag = false, lastX = 0, lastT = 0, frac = state === 'mine' ? 1 : 0;
+
+  const finishTap = target => {
+    if (state === 'taken') { entry.classList.remove('shake'); void entry.offsetWidth; entry.classList.add('shake'); Sound.nope(); return; }
+    if (!target.closest('.box, .txt')) return;
+    Sound.unlock();
+    if (state === 'free') { setP(entry, 1, true); entry.classList.add('struck'); Sound.strike(); claim(owner, id); }
+    else { setP(entry, 0, true); entry.classList.remove('struck'); Sound.erase(); unclaim(owner, id); }
+  };
+
+  entry.addEventListener('pointerdown', e => {
+    if (e.target.closest('a') || e.button > 0) return;
+    start = { x: e.clientX, y: e.clientY, id: e.pointerId, target: e.target };
+    drag = false;
+  });
+  entry.addEventListener('pointermove', e => {
+    if (!start || e.pointerId !== start.id) return;
+    const dx = e.clientX - start.x, dy = e.clientY - start.y;
+    if (!drag) {
+      if (state !== 'taken' && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
+        drag = true; dragging = true;
+        try { entry.setPointerCapture(e.pointerId); } catch (_) {}
+        lastX = e.clientX; lastT = e.timeStamp;
+        Sound.unlock(); Sound.scratchStart();
+      } else if (Math.abs(dy) > 10) { start = null; return; }
+      else return;
+    }
+    e.preventDefault();
+    const r = txt.getBoundingClientRect();
+    frac = clamp((e.clientX - r.left) / Math.max(r.width, 1), 0, 1);
+    setP(entry, frac, false);
+    const dt = Math.max(e.timeStamp - lastT, 1);
+    Sound.scratchMove(Math.abs(e.clientX - lastX) / dt);
+    lastX = e.clientX; lastT = e.timeStamp;
+  });
+  const end = e => {
+    if (!start || e.pointerId !== start.id) return;
+    const wasDrag = drag, target = start.target;
+    start = null; drag = false;
+    if (!wasDrag) { if (e.type === 'pointerup') finishTap(target); return; }
+    Sound.scratchStop();
+    dragging = false;
+    if (state === 'free') {
+      if (frac > .6) { setP(entry, 1, true); entry.classList.add('struck'); claim(owner, id); }
+      else setP(entry, 0, true);
+    } else {
+      if (frac < .4) { setP(entry, 0, true); entry.classList.remove('struck'); Sound.erase(); unclaim(owner, id); }
+      else setP(entry, 1, true);
+    }
+    if (pendingRender) { pendingRender = false; setTimeout(render, 380); }
+  };
+  entry.addEventListener('pointerup', end);
+  entry.addEventListener('pointercancel', end);
+}
+
+// ---------- Wiring ----------
 function bind() {
   document.getElementById('logout').onclick = logout;
-  $app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => { tab = b.dataset.tab; viewing = null; editing = null; render(); scrollTo(0, 0); });
-  $app.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { viewing = b.dataset.view; render(); scrollTo(0, 0); });
-  const back = $app.querySelector('[data-back]'); if (back) back.onclick = () => { viewing = null; render(); };
+  $app.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => {
+    const to = b.dataset.tab;
+    if (to === tab && !viewing) return;
+    const dir = TABS.indexOf(to) >= TABS.indexOf(tab) ? 1 : -1;
+    tab = to; viewing = null; editing = null;
+    turn(dir, render);
+  });
+  $app.querySelectorAll('[data-view]').forEach(b => b.onclick = () => { viewing = b.dataset.view; turn(1, render); });
+  const back = $app.querySelector('[data-back]'); if (back) back.onclick = () => { viewing = null; turn(-1, render); };
+  $app.querySelectorAll('.entry.swipe').forEach(attachStrike);
 
   const add = document.getElementById('addForm');
   if (add) add.onsubmit = async e => {
@@ -408,16 +695,17 @@ function bind() {
     const title = document.getElementById('fTitle').value.trim();
     const price = parsePrice(document.getElementById('fPrice').value);
     if (!title) return;
-    if (Number.isNaN(price)) { toast('price must be a number'); return; }
+    if (Number.isNaN(price)) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
     const it = { title, created: Date.now() };
     const link = normLink(document.getElementById('fLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
     add.reset();
-    try { await db.update({ [`items/${me.key}/${db.newId()}`]: it }); toast('written down'); }
-    catch (err) { toast('not saved: ' + err.message); }
+    Sound.seal();
+    try { await db.update({ [`items/${me.key}/${db.newId()}`]: it }); }
+    catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
-  $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editing = b.dataset.edit; render(); });
+  $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editing = b.dataset.edit; Sound.tap(); render(); });
   const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; render(); };
   const ed = document.getElementById('editForm');
   if (ed) ed.onsubmit = async e => {
@@ -426,59 +714,44 @@ function bind() {
     const title = document.getElementById('eTitle').value.trim();
     const price = parsePrice(document.getElementById('ePrice').value);
     if (!title) return;
-    if (Number.isNaN(price)) { toast('Price should be a number, e.g. 24,95'); return; }
+    if (Number.isNaN(price)) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
     const it = { title, created: old.created || Date.now() };
     const link = normLink(document.getElementById('eLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
     editing = null;
-    try { await db.update({ [`items/${me.key}/${id}`]: it }); toast('saved'); }
-    catch (err) { toast('not saved: ' + err.message); }
+    Sound.seal();
+    try { await db.update({ [`items/${me.key}/${id}`]: it }); }
+    catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
   $app.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
     const id = b.dataset.del, it = items[me.key][id];
-    if (!confirm(`Remove “${it.title}”?`)) return;
-    // Also remove any (hidden) claim on it, so it doesn't linger on someone's "I'm buying" list.
-    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); toast('removed'); }
-    catch (err) { toast('not removed: ' + err.message); }
-  });
-
-  $app.querySelectorAll('[data-claim]').forEach(b => b.onclick = async () => {
-    b.disabled = true;
-    try {
-      const ok = await db.setIfEmpty(`claims/${viewing}/${b.dataset.claim}`, { by: me.key, at: Date.now() });
-      if (!ok) toast('already taken');
-    } catch (err) { toast('not saved: ' + err.message); b.disabled = false; }
-  });
-
-  $app.querySelectorAll('[data-unclaim]').forEach(b => b.onclick = async () => {
-    const owner = b.dataset.owner || viewing, id = b.dataset.unclaim;
-    const c = claims[owner] && claims[owner][id];
-    if (!c || c.by !== me.key) return;
-    try { await db.update({ [`claims/${owner}/${id}`]: null }); }
-    catch (err) { toast('not saved: ' + err.message); }
+    if (!confirm(`“${it.title}” verwijderen?`)) return;
+    Sound.erase();
+    // Also remove any (hidden) claim on it, so it doesn't linger on someone's gift list.
+    try { await db.update({ [`items/${me.key}/${id}`]: null, [`claims/${me.key}/${id}`]: null }); }
+    catch (err) { toast('niet verwijderd: ' + err.message); }
   });
 }
 
 // ---------- Start ----------
 (async () => {
-  $app.innerHTML = `<div class="login"><h1>Het Boek van Sinterklaas</h1></div>`;
   try {
     db = cfg.firebase ? await firebaseBackend(cfg.firebase) : demoBackend();
   } catch (e) {
-    $app.innerHTML = `<div class="login"><h1>No connection</h1><p class="err">${esc(e.message)}</p></div>`;
+    $app.innerHTML = `<div class="sheet"><div class="center"><h1>Geen verbinding</h1><p class="err">${esc(e.message)}</p></div></div>`;
     return;
   }
   // Stay logged in on this device, as long as the PIN hasn't been reset.
   let saved = null;
   try { saved = JSON.parse(store.get('sint-me')); } catch (_) {}
+  let ok = false;
   if (saved && people.some(p => p.key === saved.key)) {
-    try {
-      if ((await db.get('people/' + saved.key + '/pinHash')) === saved.h) { enter(saved.key); return; }
-    } catch (_) {}
-    store.del('sint-me');
+    try { ok = (await db.get('people/' + saved.key + '/pinHash')) === saved.h; } catch (_) {}
+    if (!ok) store.del('sint-me');
   }
-  renderLogin();
+  if (ok) { login(saved.key); showCover(render); }
+  else showCover(() => drawNames());
 })();
 </script>
 </body>
