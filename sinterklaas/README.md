@@ -25,7 +25,7 @@ data is only saved on the device you're using.
 
 ## Changing the names
 
-Edit the `names` list in [`config.js`](config.js) (shown alphabetically). If you change the spelling
+Edit the `names` list in [`config.js`](config.js) (shown in that order). If you change the spelling
 of an existing name, map it to its old key in `keys` (e.g. `{ 'Mathijs': 'matthijs' }`) so that
 person keeps their PIN and wishes.
 

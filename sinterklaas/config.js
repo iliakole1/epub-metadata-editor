@@ -2,8 +2,8 @@
 // Edit this file to change who is in the group and to connect the Firebase database.
 
 window.SINT_CONFIG = {
-  // The people in the group (shown alphabetically).
-  names: ['Anne', 'Esmée', 'Estelle', 'Harrie', 'Ilia', 'Ize', 'Lea', 'Mathijs'],
+  // The people in the group, in the order they appear in the book.
+  names: ['Harrie', 'Estelle', 'Mathijs', 'Anne', 'Ize', 'Lea', 'Esmée', 'Ilia'],
 
   // Keeps an existing account when a name's spelling changes: { 'New spelling': 'old-key' }.
   keys: { 'Mathijs': 'matthijs' },
