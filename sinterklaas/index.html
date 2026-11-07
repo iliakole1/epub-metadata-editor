@@ -98,6 +98,19 @@
     cursor: pointer; display: grid; place-items: center; padding: 0; color: var(--red); font: 26px/1 var(--script); }
   .entry.taken .box { border-color: var(--ink-soft); cursor: default; }
 
+  .grip { flex: none; width: 26px; align-self: stretch; display: grid; place-items: center; color: var(--ink-soft); opacity: .55;
+    cursor: grab; touch-action: none; font-size: 18px; margin-left: -6px; }
+  .entry.lifted { position: relative; z-index: 5; background: var(--paperbg); box-shadow: 0 8px 22px rgba(60, 30, 0, .28);
+    border-radius: 4px; transition: box-shadow .15s; }
+  .entry.lifted .grip { opacity: 1; color: var(--red); }
+  .alt-line { font-size: .95em; margin-top: 3px; }
+  .alt-line .of, .alt .of { font-style: italic; color: var(--gold); margin-right: 6px; }
+  .alt-line .meta { display: inline-flex; margin-left: 8px; }
+  .entry.struck .alt-line .t { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: var(--ink-soft); }
+  .alt { margin-top: 8px; }
+  .alt .writeline { align-items: center; }
+  .ofbtn { background: none; border: 1px dashed var(--gold); color: var(--gold); border-radius: 14px; padding: 3px 12px;
+    font: italic 16px var(--serif); cursor: pointer; justify-self: start; margin-top: 4px; }
   .quiet { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-size: 20px; padding: 4px 6px; }
 
   /* Writing lines (forms) */
@@ -243,7 +256,7 @@
 <button id="nextEar" class="dogear next" aria-label="Volgende bladzijde"></button>
 <div id="toast"></div>
 
-<script src="config.js?v=6"></script>
+<script src="config.js?v=7"></script>
 <script type="module">
 const cfg = window.SINT_CONFIG || { names: [], firebase: null };
 const FIREBASE_VERSION = '10.12.2';
@@ -286,9 +299,12 @@ const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
 const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const keyOf = n => n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
-const people = cfg.names.map(name => ({ name, key: keyOf(name) }));
+// A name's storage key. cfg.keys keeps an old key when a name's spelling changes (so PINs and wishes stay).
+const keyFor = n => (cfg.keys && cfg.keys[n]) || keyOf(n);
+const people = cfg.names.map(name => ({ name, key: keyFor(name) }))
+  .sort((a, b) => a.name.localeCompare(b.name, 'nl', { sensitivity: 'base' }));
 // Little ones whose lists are written by their parents: { kidKey: [parentKey, ...] }
-const guardians = Object.fromEntries(Object.entries(cfg.kids || {}).map(([kid, ps]) => [keyOf(kid), ps.map(keyOf)]));
+const guardians = Object.fromEntries(Object.entries(cfg.kids || {}).map(([kid, ps]) => [keyFor(kid), ps.map(keyFor)]));
 const isKid = key => key in guardians;
 const canWrite = key => me && (key === me.key || (guardians[key] || []).includes(me.key));
 const nameOf = key => (people.find(p => p.key === key) || { name: key }).name;
@@ -1029,6 +1045,12 @@ function itemMeta(it) {
   if (it.link) bits.push(`<a href="${esc(it.link)}" target="_blank" rel="noopener noreferrer">${esc(it.link.replace(/^https?:\/\/(www\.)?/, ''))}</a>`);
   return bits.length ? `<div class="meta">${bits.join('')}</div>` : '';
 }
+const optsOf = it => (it.opts ? Object.values(it.opts) : []).filter(o => o && o.title);
+// The wish's "of" alternatives, one per line under the main title.
+function altLines(it) {
+  return optsOf(it).map(o => `<div class="alt-line"><span class="of">of</span><span class="t">${esc(o.title)}</span>${itemMeta(o)}</div>`).join('');
+}
+const GRIP = id => `<span class="grip" data-grip="${id}" aria-label="Verslepen" role="button">⠿</span>`;
 
 // A slightly wobbly, hand-drawn ink stroke.
 const INK = `<svg class="ink" viewBox="0 0 100 16" preserveAspectRatio="none" aria-hidden="true">
@@ -1043,8 +1065,9 @@ function viewMine() {
     const fresh = id === justAdded;
     if (fresh) { justAdded = null; scrollToForm = true; }
     return `
-      <div class="entry${fresh ? ' fresh' : ''}">
-        <div class="body"><div><span class="txt">${esc(it.title)}</span></div>${itemMeta(it)}</div>
+      <div class="entry${fresh ? ' fresh' : ''}" data-id="${id}" data-owner="${esc(me.key)}">
+        ${GRIP(id)}
+        <div class="body"><div><span class="txt">${esc(it.title)}</span></div>${itemMeta(it)}${altLines(it)}</div>
         <button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
         <button class="quiet" data-del="${id}" aria-label="Verwijderen">✕</button>
       </div>`;
@@ -1053,6 +1076,47 @@ function viewMine() {
 }
 
 // The writing line at the bottom of a list (your own, or a little one's for their parents).
+let altCount = { f: 0, e: 0 };                  // number of "of" lines open in the add (f) / edit (e) form
+function altFields(prefix, n, values = []) {
+  let h = '';
+  for (let i = 0; i < n; i++) {
+    const v = values[i] || {};
+    h += `
+      <div class="alt">
+        <div class="writeline"><span class="of">of</span>
+          <input class="line" id="${prefix}T${i}" placeholder="…" maxlength="200" value="${esc(v.title || '')}">
+          <button type="button" class="quiet" data-rmalt="${prefix}${i}" aria-label="Optie weghalen">✕</button></div>
+        <div class="two">
+          <input class="line" id="${prefix}L${i}" placeholder="link" inputmode="url" value="${esc(v.link || '')}">
+          <input class="line" id="${prefix}P${i}" placeholder="€" inputmode="decimal" value="${v.price != null ? String(v.price).replace('.', ',') : ''}">
+        </div>
+      </div>`;
+  }
+  return h + `<button type="button" class="ofbtn" data-addalt="${prefix}">+ of</button>`;
+}
+function readAlts(prefix) {
+  const out = [];
+  for (let i = 0; i < altCount[prefix]; i++) {
+    const g = k => (document.getElementById(prefix + k + i) || { value: '' }).value;
+    out.push({ title: g('T').trim(), link: g('L'), price: g('P') });
+  }
+  return out;
+}
+// Turn the "of" lines into stored options; returns null if a price isn't a number.
+function altsToOpts(raw) {
+  const opts = [];
+  for (const r of raw) {
+    if (!r.title) continue;
+    const price = parsePrice(r.price);
+    if (Number.isNaN(price)) return null;
+    const o = { title: r.title.slice(0, 200) };
+    const link = normLink(r.link); if (link) o.link = link;
+    if (price != null) o.price = price;
+    opts.push(o);
+  }
+  return opts;
+}
+
 function writeForm(owner, placeholder) {
   return `
     <form class="add addform" id="addForm" data-owner="${esc(owner)}">
@@ -1064,6 +1128,7 @@ function writeForm(owner, placeholder) {
         <input class="line" id="fLink" placeholder="link" inputmode="url">
         <input class="line" id="fPrice" placeholder="€" inputmode="decimal">
       </div>
+      ${altFields('f', altCount.f)}
     </form>`;
 }
 
@@ -1075,6 +1140,7 @@ function editEntry(id, it, owner = me.key) {
         <input class="line" id="eLink" value="${esc(it.link || '')}" placeholder="link" inputmode="url">
         <input class="line" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€" inputmode="decimal">
       </div>
+      ${altFields('e', altCount.e, optsOf(it))}
       <div class="formrow">
         <button class="textbtn" type="button" id="cancelEdit">annuleren</button>
         <button class="seal" type="submit" aria-label="Opslaan">✓</button>
@@ -1101,8 +1167,9 @@ function personEntry(owner, id, it, editable = false) {
   if (fresh) { justAdded = null; scrollToForm = true; }
   return `
     <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
+      ${editable ? GRIP(id) : ''}
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
-      <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}</div>
+      <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}${altLines(it)}</div>
       ${state === 'mine' ? `<span class="by">ik</span>` : ''}
       ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
       <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
@@ -1166,7 +1233,7 @@ function attachStrike(entry) {
   };
 
   entry.addEventListener('pointerdown', e => {
-    if (e.target.closest('a, .quiet') || e.button > 0) return;
+    if (e.target.closest('a, .quiet, .grip') || e.button > 0) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId, target: e.target };
     drag = false;
   });
@@ -1210,6 +1277,53 @@ function attachStrike(entry) {
   entry.addEventListener('pointercancel', end);
 }
 
+// ---------- Reordering: hold the ⠿ handle and drag a wish up or down ----------
+function attachReorder(grip) {
+  const entry = grip.closest('.entry');
+  const owner = entry.dataset.owner;
+  let startY = 0, baseTop = 0, pid = null;
+  const siblings = () => [...entry.parentElement.querySelectorAll(`:scope > .entry[data-id]`)];
+  grip.addEventListener('pointerdown', e => {
+    if (!canWrite(owner)) return;
+    e.preventDefault(); e.stopPropagation();
+    pid = e.pointerId; try { grip.setPointerCapture(pid); } catch (_) {}
+    dragging = true; startY = e.clientY; baseTop = 0;
+    entry.classList.add('lifted'); Sound.unlock(); Sound.tap();
+  });
+  grip.addEventListener('pointermove', e => {
+    if (e.pointerId !== pid) return;
+    let dy = e.clientY - startY;
+    // move past a neighbour's middle -> swap places in the list
+    const list = siblings(), i = list.indexOf(entry);
+    const prev = list[i - 1], next = list[i + 1];
+    const r = entry.getBoundingClientRect(), mid = r.top + r.height / 2 + (dy - baseTop);
+    if (prev && mid < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
+      const h = prev.offsetHeight; prev.before(entry); baseTop -= h; Sound.rustle();
+    } else if (next && mid > next.getBoundingClientRect().top + next.offsetHeight / 2) {
+      const h = next.offsetHeight; next.after(entry); baseTop += h; Sound.rustle();
+    }
+    entry.style.transform = `translateY(${dy - baseTop}px)`;
+    if (e.clientY < 70) scrollBy(0, -10); else if (e.clientY > innerHeight - 70) scrollBy(0, 10);
+  });
+  const end = async e => {
+    if (e.pointerId !== pid) return;
+    pid = null; dragging = false;
+    entry.classList.remove('lifted'); entry.style.transform = '';
+    // Save the new order by handing the existing timestamps out in the new order.
+    const ids = siblings().map(el => el.dataset.id);
+    const own = items[owner] || {};
+    const stamps = ids.map(id => (own[id] || {}).created || 0).sort((a, b) => a - b);
+    const upd = {};
+    ids.forEach((id, k) => { if (own[id] && own[id].created !== stamps[k]) upd[`items/${owner}/${id}/created`] = stamps[k]; });
+    if (Object.keys(upd).length) {
+      Sound.seal();
+      try { await db.update(upd); } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+    } else if (pendingRender) { pendingRender = false; render(); }
+  };
+  grip.addEventListener('pointerup', end);
+  grip.addEventListener('pointercancel', end);
+}
+
 // ---------- Wiring ----------
 function bind() {
   document.getElementById('logout').onclick = logout;
@@ -1227,10 +1341,16 @@ function bind() {
     const price = parsePrice(document.getElementById('fPrice').value);
     if (!title) return;
     if (Number.isNaN(price)) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
-    const it = { title, created: Date.now() };
+    const opts = altsToOpts(readAlts('f'));
+    if (!opts) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
+    const owner0 = add.dataset.owner || me.key;
+    // New wishes go at the bottom (after any reordering).
+    const maxCreated = Math.max(0, ...sortedItems(owner0).map(([, x]) => x.created || 0));
+    const it = { title, created: Math.max(Date.now(), maxCreated + 1) };
     const link = normLink(document.getElementById('fLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
-    add.reset();
+    if (opts.length) it.opts = opts;
+    add.reset(); altCount.f = 0;
     document.getElementById('fTitle').focus({ preventScroll: true });   // keep writing, keyboard stays up
     Sound.write();
     const newId = db.newId(), owner = add.dataset.owner || me.key;
@@ -1240,8 +1360,25 @@ function bind() {
     catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
-  $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => { editing = b.dataset.edit; Sound.tap(); render(); });
-  const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; render(); };
+  $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
+    editing = b.dataset.edit;
+    const owner = b.closest('.entry')?.dataset.owner || me.key;
+    altCount.e = optsOf((items[owner] || {})[editing] || {}).length;
+    Sound.tap(); render();
+  });
+  // "+ of" adds an option line; ✕ removes one (keeping what's typed in the others)
+  $app.querySelectorAll('[data-addalt]').forEach(b => b.onclick = () => {
+    const p = b.dataset.addalt; altCount[p]++; Sound.tap(); render();
+    const el = document.getElementById(p + 'T' + (altCount[p] - 1)); if (el) el.focus();
+  });
+  $app.querySelectorAll('[data-rmalt]').forEach(b => b.onclick = () => {
+    const p = b.dataset.rmalt[0], i = +b.dataset.rmalt.slice(1);
+    const vals = readAlts(p); vals.splice(i, 1); altCount[p]--;
+    render();
+    vals.forEach((v, k) => { for (const [f, val] of [['T', v.title], ['L', v.link], ['P', v.price]]) { const el = document.getElementById(p + f + k); if (el) el.value = val; } });
+  });
+  $app.querySelectorAll('[data-grip]').forEach(attachReorder);
+  const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; altCount.e = 0; render(); };
   const ed = document.getElementById('editForm');
   if (ed) ed.onsubmit = async e => {
     e.preventDefault();
@@ -1251,10 +1388,13 @@ function bind() {
     const price = parsePrice(document.getElementById('ePrice').value);
     if (!title) return;
     if (Number.isNaN(price)) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
+    const opts = altsToOpts(readAlts('e'));
+    if (!opts) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
     const it = { title, created: old.created || Date.now() };
     const link = normLink(document.getElementById('eLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
-    editing = null;
+    if (opts.length) it.opts = opts;
+    editing = null; altCount.e = 0;
     Sound.write();
     try { await db.update({ [`items/${owner}/${id}`]: it }); }
     catch (err) { toast('niet opgeslagen: ' + err.message); }
