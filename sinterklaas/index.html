@@ -104,6 +104,8 @@
     border-radius: 4px; transition: box-shadow .15s; }
   .entry.lifted .grip { opacity: 1; color: var(--red); }
   .alt-line { font-size: .95em; margin-top: 3px; }
+  .entry.swipe .alt-line { cursor: pointer; }
+  .arrow { display: inline-block; vertical-align: middle; margin: 0 4px 0 -4px; }
   .alt-line .of, .alt .of { font-style: italic; color: var(--gold); margin-right: 6px; }
   .alt-line .meta { display: inline-flex; margin-left: 8px; }
   .entry.struck .alt-line .t { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: var(--ink-soft); }
@@ -1047,8 +1049,10 @@ function itemMeta(it) {
 }
 const optsOf = it => (it.opts ? Object.values(it.opts) : []).filter(o => o && o.title);
 // The wish's "of" alternatives, one per line under the main title.
-function altLines(it) {
-  return optsOf(it).map(o => `<div class="alt-line"><span class="of">of</span><span class="t">${esc(o.title)}</span>${itemMeta(o)}</div>`).join('');
+const ARROW = `<svg class="arrow" width="22" height="12" viewBox="0 0 22 12" aria-label="jouw keuze">
+  <path d="M1 6.4 C 6 5.6, 12 6.6, 19 5.8 M14.5 1.8 C 16.5 3.6, 18.5 5, 20.6 5.9 C 18.4 6.9, 16.4 8.4, 14.6 10.3" fill="none" stroke="#8e1b14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+function altLines(it, picked = -1) {
+  return optsOf(it).map((o, i) => `<div class="alt-line" data-opt="${i + 1}">${picked === i + 1 ? ARROW : ''}<span class="of">of</span><span class="t">${esc(o.title)}</span>${itemMeta(o)}</div>`).join('');
 }
 const GRIP = id => `<span class="grip" data-grip="${id}" aria-label="Verslepen" role="button">⠿</span>`;
 
@@ -1162,14 +1166,15 @@ function viewEveryone() {
 
 function personEntry(owner, id, it, editable = false) {
   const c = claims[owner] && claims[owner][id];
-  const state = !c ? 'free' : c.by === me.key ? 'mine' : 'taken';
+  const state = !c ? 'free' : claimBy(c) === me.key ? 'mine' : 'taken';
+  const picked = state === 'mine' ? claimOpt(c) : -1;          // only you see which option you picked
   const fresh = editable && id === justAdded;
   if (fresh) { justAdded = null; scrollToForm = true; }
   return `
     <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
       ${editable ? GRIP(id) : ''}
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
-      <div class="body"><div><span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}${altLines(it)}</div>
+      <div class="body"><div>${picked === 0 && optsOf(it).length ? ARROW : ''}<span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}${altLines(it, picked)}</div>
       ${state === 'mine' ? `<span class="by">ik</span>` : ''}
       ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
       <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
@@ -1191,9 +1196,12 @@ function viewBuying() {
   let total = 0, out = '';
   for (const p of people) {
     if (p.key === me.key) continue;
-    const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claims[p.key][id].by === me.key);
+    const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claimBy(claims[p.key][id]) === me.key);
     if (!mine.length) continue;
-    mine.forEach(([, it]) => { if (it.price != null) total += it.price; });
+    mine.forEach(([id, it]) => {                       // count the price of the option you picked
+      const n = claimOpt(claims[p.key][id]), o = n ? optsOf(it)[n - 1] : it;
+      const price = (o || it).price; if (price != null) total += price;
+    });
     out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it)).join('');
   }
   if (!out) return `<div class="empty">je winkellijstje is nog leeg</div>`;
@@ -1201,16 +1209,27 @@ function viewBuying() {
 }
 
 // ---------- Striking off: swipe across, or tap the word / the box ----------
-async function claim(owner, id) {
+// A claim's 'by' is "key" or "key:n", n being the picked "of" option (1-based; none = the main line).
+// Kept in one field so the database rules don't need to change.
+const claimBy = c => String(c.by).split(':')[0];
+const claimOpt = c => +(String(c.by).split(':')[1] || 0);
+const byValue = opt => opt ? `${me.key}:${opt}` : me.key;
+async function claim(owner, id, opt = 0) {
   try {
-    const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: me.key, at: Date.now() });
+    const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: byValue(opt), at: Date.now() });
     if (!ok) { toast('al gekozen'); Sound.nope(); render(); }
   } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
 async function unclaim(owner, id) {
   const c = claims[owner] && claims[owner][id];
-  if (!c || c.by !== me.key) return;
+  if (!c || claimBy(c) !== me.key) return;
   try { await db.update({ [`claims/${owner}/${id}`]: null }); }
+  catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+}
+async function switchClaim(owner, id, opt) {
+  const c = claims[owner] && claims[owner][id];
+  if (!c || claimBy(c) !== me.key) return;
+  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(opt) }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
 
@@ -1226,9 +1245,12 @@ function attachStrike(entry) {
 
   const finishTap = target => {
     if (state === 'taken') { entry.classList.remove('shake'); void entry.offsetWidth; entry.classList.add('shake'); Sound.nope(); return; }
-    if (!target.closest('.box, .txt')) return;
+    const alt = target.closest('.alt-line');
+    if (!alt && !target.closest('.box, .txt')) return;
+    const opt = alt ? +alt.dataset.opt : 0;          // which line was tapped (0 = main line)
     Sound.unlock();
-    if (state === 'free') { setP(entry, 1, true); entry.classList.add('struck'); Sound.strike(); claim(owner, id); }
+    if (state === 'free') { setP(entry, 1, true); entry.classList.add('struck'); Sound.strike(); claim(owner, id, opt); }
+    else if (!target.closest('.box') && opt !== claimOpt(claims[owner][id])) { Sound.strike(); switchClaim(owner, id, opt); }
     else { setP(entry, 0, true); entry.classList.remove('struck'); Sound.erase(); unclaim(owner, id); }
   };
 
