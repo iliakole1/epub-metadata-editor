@@ -105,7 +105,9 @@
   .entry.lifted .grip { opacity: 1; color: var(--red); }
   .alt-line { font-size: .95em; margin-top: 3px; }
   .entry.swipe .alt-line { cursor: pointer; }
-  .arrow { display: inline-block; vertical-align: middle; margin: 0 4px 0 -4px; }
+  .picked { position: relative; }
+  .circle { position: absolute; left: -12%; top: -38%; width: 124%; height: 176%; pointer-events: none; overflow: visible; }
+  .txt.picked .circle { left: -6%; width: 112%; }
   .alt-line .of, .alt .of { font-style: italic; color: var(--gold); margin-right: 6px; }
   .alt-line .meta { display: inline-flex; margin-left: 8px; }
   .entry.struck .alt-line .t { text-decoration: line-through; text-decoration-color: var(--red); text-decoration-thickness: 2px; color: var(--ink-soft); }
@@ -1049,10 +1051,12 @@ function itemMeta(it) {
 }
 const optsOf = it => (it.opts ? Object.values(it.opts) : []).filter(o => o && o.title);
 // The wish's "of" alternatives, one per line under the main title.
-const ARROW = `<svg class="arrow" width="22" height="12" viewBox="0 0 22 12" aria-label="jouw keuze">
-  <path d="M1 6.4 C 6 5.6, 12 6.6, 19 5.8 M14.5 1.8 C 16.5 3.6, 18.5 5, 20.6 5.9 C 18.4 6.9, 16.4 8.4, 14.6 10.3" fill="none" stroke="#8e1b14" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
+// A hand-drawn ink circle around the option you picked (only you see it).
+const CIRCLE = `<svg class="circle" viewBox="0 0 100 40" preserveAspectRatio="none" aria-label="jouw keuze">
+  <path d="M58 4.5 C 30 2.5, 6 8, 4 20 C 2.5 31, 26 37.5, 52 36.5 C 78 35.5, 97 29, 96 18.5 C 95 9, 76 3.5, 48 5.5 C 40 6.2, 33 7.6, 27 9.6"
+    fill="none" stroke="#8e1b14" stroke-width="2" stroke-linecap="round" vector-effect="non-scaling-stroke"/></svg>`;
 function altLines(it, picked = -1) {
-  return optsOf(it).map((o, i) => `<div class="alt-line" data-opt="${i + 1}">${picked === i + 1 ? ARROW : ''}<span class="of">of</span><span class="t">${esc(o.title)}</span>${itemMeta(o)}</div>`).join('');
+  return optsOf(it).map((o, i) => `<div class="alt-line" data-opt="${i + 1}"><span class="of">of</span><span class="t${picked === i + 1 ? ' picked' : ''}">${esc(o.title)}${picked === i + 1 ? CIRCLE : ''}</span>${itemMeta(o)}</div>`).join('');
 }
 const GRIP = id => `<span class="grip" data-grip="${id}" aria-label="Verslepen" role="button">⠿</span>`;
 
@@ -1174,7 +1178,7 @@ function personEntry(owner, id, it, editable = false) {
     <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
       ${editable ? GRIP(id) : ''}
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
-      <div class="body"><div>${picked === 0 && optsOf(it).length ? ARROW : ''}<span class="txt">${esc(it.title)}${INK}</span></div>${itemMeta(it)}${altLines(it, picked)}</div>
+      <div class="body"><div><span class="txt${picked === 0 && optsOf(it).length ? ' picked' : ''}">${esc(it.title)}${INK}${picked === 0 && optsOf(it).length ? CIRCLE : ''}</span></div>${itemMeta(it)}${altLines(it, picked)}</div>
       ${state === 'mine' ? `<span class="by">ik</span>` : ''}
       ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
       <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
