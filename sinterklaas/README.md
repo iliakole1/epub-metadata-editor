@@ -11,6 +11,9 @@ bottom right; go back with the folded corner at the bottom left. The menu at the
 - Everyone picks their name and protects it with a PIN (set on first login).
 - **My list**: write new wishes on the line at the bottom (like a chat), with an optional link and
   price; edit or delete items.
+  Drag the ⠿ handle to reorder (top = most wanted). "+ of" adds alternatives to one wish (e.g.
+  a chocolate letter: white *or* milk *or* dark), each with its own link and price; a wish with
+  alternatives is struck off as a whole.
 - **Everyone**: see everyone else's lists and strike a wish off by swiping across it (or tapping
   the word or the box on the left; links stay tappable). Others see that it's struck (but not by whom), so nobody
   buys the same thing twice. Swipe back to erase your own strike.
@@ -22,10 +25,12 @@ data is only saved on the device you're using.
 
 ## Changing the names
 
-Edit the `names` list in [`config.js`](config.js).
+Edit the `names` list in [`config.js`](config.js) (shown alphabetically). If you change the spelling
+of an existing name, map it to its old key in `keys` (e.g. `{ 'Mathijs': 'matthijs' }`) so that
+person keeps their PIN and wishes.
 
 Little ones who don't log in themselves go in `kids`, with the parents who write their lists:
-`kids: { 'Lea': ['Anne', 'Matthijs'] }`. Kids don't appear on the login page; on their page the
+`kids: { 'Lea': ['Anne', 'Mathijs'] }`. Kids don't appear on the login page; on their page the
 parents get the writing line and can edit or remove wishes, and they also see what others struck off.
 
 ## Connecting Firebase (one-time, ~5 minutes)

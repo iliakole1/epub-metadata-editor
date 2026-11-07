@@ -20,6 +20,15 @@
           "link":    { ".validate": "newData.isString() && newData.val().length <= 2000" },
           "price":   { ".validate": "newData.isNumber() && newData.val() >= 0" },
           "created": { ".validate": "newData.isNumber()" },
+          "opts": {
+            "$opt": {
+              ".validate": "newData.hasChildren(['title']) && $opt.length < 3",
+              "title":  { ".validate": "newData.isString() && newData.val().length > 0 && newData.val().length <= 200" },
+              "link":   { ".validate": "newData.isString() && newData.val().length <= 2000" },
+              "price":  { ".validate": "newData.isNumber() && newData.val() >= 0" },
+              "$other": { ".validate": false }
+            }
+          },
           "$other":  { ".validate": false }
         }
       }
