@@ -260,7 +260,7 @@
 <button id="nextEar" class="dogear next" aria-label="Volgende bladzijde"></button>
 <div id="toast"></div>
 
-<script src="config.js?v=7"></script>
+<script src="config.js?v=8"></script>
 <script type="module">
 const cfg = window.SINT_CONFIG || { names: [], firebase: null };
 const FIREBASE_VERSION = '10.12.2';
@@ -305,8 +305,7 @@ const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': 
 const keyOf = n => n.trim().toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'x';
 // A name's storage key. cfg.keys keeps an old key when a name's spelling changes (so PINs and wishes stay).
 const keyFor = n => (cfg.keys && cfg.keys[n]) || keyOf(n);
-const people = cfg.names.map(name => ({ name, key: keyFor(name) }))
-  .sort((a, b) => a.name.localeCompare(b.name, 'nl', { sensitivity: 'base' }));
+const people = cfg.names.map(name => ({ name, key: keyFor(name) }));   // in the order given in config.js
 // Little ones whose lists are written by their parents: { kidKey: [parentKey, ...] }
 const guardians = Object.fromEntries(Object.entries(cfg.kids || {}).map(([kid, ps]) => [keyFor(kid), ps.map(keyFor)]));
 const isKid = key => key in guardians;
