@@ -1306,33 +1306,64 @@ function attachStrike(entry) {
 function attachReorder(grip) {
   const entry = grip.closest('.entry');
   const owner = entry.dataset.owner;
-  let startY = 0, baseTop = 0, pid = null;
+  // Work in page coordinates (finger y + scroll) against each wish's layout position (offsetTop,
+  // which ignores the drag transform), so tall wishes with several "of" lines move smoothly.
+  let pid = null, startPageY = 0, startClientY = 0, startTop = 0, lastClientY = 0, autoRaf = 0;
   const siblings = () => [...entry.parentElement.querySelectorAll(`:scope > .entry[data-id]`)];
+  const midOf = el => el.offsetTop + el.offsetHeight / 2;
+  const update = () => {
+    // Stay within the list: no higher than its first slot, no lower than its last.
+    // (its middle may reach the list's very top/bottom, so it can pass the first or last wish)
+    const all = siblings(), first = all[0], last = all[all.length - 1], h2 = entry.offsetHeight / 2;
+    const minTop = first.offsetTop - h2, maxTop = last.offsetTop + last.offsetHeight - h2;
+    const visualTop = clamp(startTop + (lastClientY + scrollY - startPageY), minTop, maxTop);
+    const visualMid = visualTop + entry.offsetHeight / 2;
+    let moved = false;
+    for (;;) {                                       // pass as many neighbours as the finger has
+      const list = siblings(), i = list.indexOf(entry);
+      const prev = list[i - 1], next = list[i + 1];
+      if (prev && visualMid < midOf(prev)) { prev.before(entry); moved = true; }
+      else if (next && visualMid > midOf(next)) { next.after(entry); moved = true; }
+      else break;
+    }
+    if (moved) Sound.rustle();
+    entry.style.transform = `translateY(${visualTop - entry.offsetTop}px)`;
+  };
+  // Keep scrolling while the finger rests near the top or bottom of the screen.
+  const autoScroll = () => {
+    if (pid === null) return;
+    // Only once you're really dragging, and only in the direction you're dragging.
+    const edge = 80, d = lastClientY - startClientY;
+    const v = d < -12 && lastClientY < edge ? -(edge - lastClientY) / 6
+            : d > 12 && lastClientY > innerHeight - edge ? (lastClientY - innerHeight + edge) / 6 : 0;
+    if (v) { scrollBy(0, v); update(); }
+    autoRaf = requestAnimationFrame(autoScroll);
+  };
   grip.addEventListener('pointerdown', e => {
     if (!canWrite(owner)) return;
     e.preventDefault(); e.stopPropagation();
     pid = e.pointerId; try { grip.setPointerCapture(pid); } catch (_) {}
-    dragging = true; startY = e.clientY; baseTop = 0;
+    dragging = true;
+    lastClientY = startClientY = e.clientY; startPageY = e.clientY + scrollY; startTop = entry.offsetTop;
     entry.classList.add('lifted'); Sound.unlock(); Sound.tap();
+    autoRaf = requestAnimationFrame(autoScroll);
+    // Moving the wish in the list makes the browser drop the handle's pointer capture,
+    // so follow the finger (and the release) on the whole window instead.
+    addEventListener('pointermove', move);
+    addEventListener('pointerup', end);
+    addEventListener('pointercancel', end);
   });
-  grip.addEventListener('pointermove', e => {
+  const move = e => {
     if (e.pointerId !== pid) return;
-    let dy = e.clientY - startY;
-    // move past a neighbour's middle -> swap places in the list
-    const list = siblings(), i = list.indexOf(entry);
-    const prev = list[i - 1], next = list[i + 1];
-    const r = entry.getBoundingClientRect(), mid = r.top + r.height / 2 + (dy - baseTop);
-    if (prev && mid < prev.getBoundingClientRect().top + prev.offsetHeight / 2) {
-      const h = prev.offsetHeight; prev.before(entry); baseTop -= h; Sound.rustle();
-    } else if (next && mid > next.getBoundingClientRect().top + next.offsetHeight / 2) {
-      const h = next.offsetHeight; next.after(entry); baseTop += h; Sound.rustle();
-    }
-    entry.style.transform = `translateY(${dy - baseTop}px)`;
-    if (e.clientY < 70) scrollBy(0, -10); else if (e.clientY > innerHeight - 70) scrollBy(0, 10);
-  });
+    lastClientY = e.clientY;
+    update();
+  };
   const end = async e => {
     if (e.pointerId !== pid) return;
-    pid = null; dragging = false;
+    pid = null; dragging = false; cancelAnimationFrame(autoRaf);
+    removeEventListener('pointermove', move);
+    removeEventListener('pointerup', end);
+    removeEventListener('pointercancel', end);
     entry.classList.remove('lifted'); entry.style.transform = '';
     // Save the new order by handing the existing timestamps out in the new order.
     const ids = siblings().map(el => el.dataset.id);
@@ -1345,8 +1376,6 @@ function attachReorder(grip) {
       try { await db.update(upd); } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
     } else if (pendingRender) { pendingRender = false; render(); }
   };
-  grip.addEventListener('pointerup', end);
-  grip.addEventListener('pointercancel', end);
 }
 
 // ---------- Wiring ----------
