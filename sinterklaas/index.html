@@ -247,13 +247,11 @@
   #mute svg { display: block; margin: auto; }
   #mute:active { transform: scale(.92); }
 
-  /* Easter egg: pepernoten raining down over the book */
-  .rain { position: fixed; inset: 0; z-index: 38; pointer-events: none; overflow: hidden; }
-  .drop { position: absolute; top: 0; will-change: transform; filter: drop-shadow(1px 3px 2px rgba(60, 30, 0, .35));
-    animation: fall var(--dur) cubic-bezier(.45, 0, .9, .6) var(--delay) both; }
-  .drop img { display: block; width: 100%; animation: sway calc(var(--dur) / 2.5) ease-in-out var(--delay) infinite alternate; }
-  @keyframes fall { from { transform: translateY(-80px); } to { transform: translateY(calc(100vh + 80px)); } }
-  @keyframes sway { from { transform: translateX(calc(var(--sway) * -1)); } to { transform: translateX(var(--sway)); } }
+  /* Easter egg: pepernoten fall onto the page, bounce, and stay until wiped off or the page is turned */
+  .crumbs { position: absolute; left: 0; top: 0; width: 100%; height: 0; z-index: 30; }
+  .crumb { position: absolute; touch-action: none; cursor: grab; will-change: transform;
+    filter: drop-shadow(1px 3px 2px rgba(60, 30, 0, .35)); }
+  .crumb img { display: block; width: 100%; pointer-events: none; }
   #toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--ink); color: var(--paper); padding: 8px 18px; border-radius: 4px; font-style: italic; font-size: 17px;
     opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; max-width: 90vw; }
@@ -428,13 +426,10 @@ const Sound = (() => {
     },
     rustle() { noise({ dur: .25, f0: 900, f1: 1800, q: .6, gain: .1, attack: .08 }); },
     nope() { tone({ freq: 220, f1: 160, dur: .18, gain: .14, type: 'triangle' }); },
-    // Pepernoten pattering down: lots of tiny, dry little taps.
-    patter(seconds = 3) {
-      for (let i = 0; i < 26; i++) {
-        const t = Math.random() * seconds;
-        noise({ dur: .03 + Math.random() * .03, f0: 1800 + Math.random() * 2500, q: 5, gain: .05 + Math.random() * .07, attack: .003, delay: t });
-      }
-    },
+    // A pepernoot landing on paper: a tiny dry tick (quieter on each bounce).
+    tick(gain = .1) { noise({ dur: .025 + Math.random() * .02, f0: 1600 + Math.random() * 2400, q: 5, gain, attack: .002 }); },
+    // Wiping a pepernoot off the page.
+    swish() { noise({ dur: .18, f0: 700, f1: 2600, q: .8, gain: .08, attack: .03 }); },
     // Continuous quill scratch while dragging
     scratchStart() {
       const c = ac(); if (!c || scratch) return;
@@ -576,18 +571,26 @@ function snapshot(sheet) {
 function startCurl(dir, draw, opts = {}) {
   if (!opts.keep) endCurl();
   const old = $app.querySelector('.sheet');
-  if (!old || reduceMotion) { draw(); scrollTo(0, 0); Sound.page(); return null; }
+  if (!old || reduceMotion) { clearCrumbs(); draw(); scrollTo(0, 0); Sound.page(); return null; }
   const W = innerWidth, H = innerHeight, D = Math.hypot(W, H), sc = scrollY;
+  // Pepernoten lying on the page go with it (into the snapshot) and are gone from the next page.
+  const crumbs = crumbLayer(false);
+  const withCrumbs = snap => {
+    if (crumbs && crumbs.children.length) { snap.style.position = 'relative'; snap.appendChild(crumbs.cloneNode(true)); }
+    return snap;
+  };
 
   const wrap = div('curl');
   let base = null, pageSnap, pageScroll;
   if (dir > 0) {
-    pageSnap = () => snapshot(old); pageScroll = sc;           // the current page turns away
+    pageSnap = () => withCrumbs(snapshot(old)); pageScroll = sc;   // the current page turns away
   } else if (!opts.noBase) {
-    base = div('old'); base.appendChild(snapshot(old));        // current page stays put underneath
+    base = div('old'); base.appendChild(withCrumbs(snapshot(old)));   // current page stays put underneath
     wrap.appendChild(base);
   }
   if (opts.z) wrap.style.zIndex = opts.z;
+  if (dir > 0) { const a = withCrumbs(snapshot(old)), b = withCrumbs(snapshot(old)); let i = 0; pageSnap = () => (i++ ? b : a); }
+  clearCrumbs();
   draw();
   scrollTo(0, 0);
   if (dir < 0) { const fresh = $app.querySelector('.sheet'); pageSnap = () => snapshot(fresh); pageScroll = 0; }
@@ -1016,6 +1019,7 @@ function logout() {
   subs.forEach(u => u()); subs = [];
   me = null; items = {}; claims = {}; viewing = null; editing = null; tab = 'mine';
   store.del('sint-me');
+  clearCrumbs();
   showCover(() => drawNames(), true);           // close the book
 }
 
@@ -1298,24 +1302,67 @@ function maybeRain() {
   store.set('sint-strikes', '0');
   if (Math.random() < RAIN_CHANCE) setTimeout(pepernotenRain, 450);   // just after the strike is drawn
 }
-function pepernotenRain(count = 40) {
+function crumbLayer(create = true) {
+  let layer = document.querySelector('body > .crumbs');
+  if (!layer && create) { layer = div('crumbs'); document.body.appendChild(layer); }
+  return layer;
+}
+function clearCrumbs() { const l = crumbLayer(false); if (l) l.remove(); }
+
+function pepernotenRain(count = 30) {
   if (reduceMotion) return;
-  const rain = div('rain');
-  let longest = 0;
+  const layer = crumbLayer();
+  const W = document.documentElement.clientWidth;
   for (let i = 0; i < count; i++) {
     let n; do { n = 1 + Math.floor(Math.random() * PN_COUNT); } while (n === PN_PAIR);
-    const size = 22 + Math.random() * 22, dur = 2.2 + Math.random() * 1.8, delay = Math.random() * 1.6;
-    longest = Math.max(longest, dur + delay);
-    const d = div('drop');
-    d.style.cssText = `left:${(Math.random() * 100).toFixed(1)}%;width:${size.toFixed(0)}px;margin-left:${(-size / 2).toFixed(0)}px;`
-      + `--dur:${dur.toFixed(2)}s;--delay:${delay.toFixed(2)}s;--sway:${(6 + Math.random() * 14).toFixed(0)}px`;
-    d.innerHTML = `<img src="img/pn${n}.png" alt="" draggable="false">`;
-    rain.appendChild(d);
+    const size = 24 + Math.random() * 18;
+    const x = 10 + Math.random() * (W - size - 20);
+    const y = scrollY + 50 + Math.random() * (innerHeight - size - 100);   // somewhere on the visible page
+    const c = div('crumb');
+    c.style.cssText = `left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;width:${size.toFixed(0)}px`;
+    c.innerHTML = `<img src="img/pn${n}.png" alt="" draggable="false">`;
+    layer.appendChild(c);
+    // fall from above the screen, squash on impact, then two shrinking bounces
+    const from = -(y - scrollY + size + 40), dur = 900 + Math.random() * 700, delay = Math.random() * 1400;
+    const h1 = 14 + Math.random() * 14, h2 = h1 * .35;
+    c.animate([
+      { transform: `translateY(${from}px)`, easing: 'cubic-bezier(.5,0,1,.6)' },
+      { transform: 'translateY(0) scale(1.08,.86)', offset: .55, easing: 'cubic-bezier(0,.5,.5,1)' },
+      { transform: `translateY(${-h1}px) scale(.96,1.04)`, offset: .7, easing: 'cubic-bezier(.5,0,1,.5)' },
+      { transform: 'translateY(0) scale(1.04,.93)', offset: .82, easing: 'cubic-bezier(0,.5,.5,1)' },
+      { transform: `translateY(${-h2}px)`, offset: .91, easing: 'cubic-bezier(.5,0,1,.5)' },
+      { transform: 'translateY(0)' },
+    ], { duration: dur, delay, fill: 'backwards' });
+    setTimeout(() => Sound.tick(.1), delay + dur * .55);
+    setTimeout(() => Sound.tick(.04), delay + dur * .82);
   }
-  document.body.appendChild(rain);
-  Sound.patter(longest * .8);
-  setTimeout(() => rain.remove(), (longest + .3) * 1000);
 }
+
+// Wipe pepernoten off with a finger: anything the finger brushes flies off in that direction.
+(() => {
+  let last = null;
+  const fling = (c, vx, vy) => {
+    if (c.dataset.gone) return; c.dataset.gone = '1';
+    const sp = Math.hypot(vx, vy) || 1, k = Math.max(1, 1.2 / sp);          // always fly off, even on a slow wipe
+    const dx = vx * k * 500, dy = vy * k * 500, rot = (Math.random() - .5) * 540;
+    Sound.swish();
+    c.animate([{ transform: 'none', opacity: 1 }, { transform: `translate(${dx}px, ${dy}px) rotate(${rot}deg)`, opacity: 0 }],
+      { duration: 520, easing: 'cubic-bezier(.2,.6,.4,1)', fill: 'forwards' }).onfinish = () => c.remove();
+  };
+  addEventListener('pointerdown', e => { last = { x: e.clientX, y: e.clientY, t: e.timeStamp }; }, true);
+  addEventListener('pointermove', e => {
+    const layer = crumbLayer(false);
+    if (!last || !layer || !layer.children.length) { if (last) last = { x: e.clientX, y: e.clientY, t: e.timeStamp }; return; }
+    const dt = Math.max(1, e.timeStamp - last.t), vx = (e.clientX - last.x) / dt, vy = (e.clientY - last.y) / dt;
+    for (const c of layer.children) {
+      const r = c.getBoundingClientRect(), cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+      if (Math.hypot(cx - e.clientX, cy - e.clientY) < r.width / 2 + 16) fling(c, vx, vy);
+    }
+    last = { x: e.clientX, y: e.clientY, t: e.timeStamp };
+  }, true);
+  addEventListener('pointerup', () => { last = null; }, true);
+  addEventListener('pointercancel', () => { last = null; }, true);
+})();
 async function unclaim(owner, id) {
   const c = claims[owner] && claims[owner][id];
   if (!c || claimBy(c) !== me.key) return;
@@ -1359,6 +1406,9 @@ function attachStrike(entry) {
     if (!start || e.pointerId !== start.id) return;
     const dx = e.clientX - start.x, dy = e.clientY - start.y;
     if (!drag) {
+      // While pepernoten lie on the page a sideways swipe wipes them off instead of striking.
+      const wiping = (crumbLayer(false) || { children: [] }).children.length > 0;
+      if (wiping) { start = null; return; }
       if (state !== 'taken' && Math.abs(dx) > 8 && Math.abs(dx) > Math.abs(dy) * 1.2) {
         drag = true; dragging = true;
         try { entry.setPointerCapture(e.pointerId); } catch (_) {}
