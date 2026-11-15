@@ -247,6 +247,13 @@
   #mute svg { display: block; margin: auto; }
   #mute:active { transform: scale(.92); }
 
+  /* Easter egg: pepernoten raining down over the book */
+  .rain { position: fixed; inset: 0; z-index: 38; pointer-events: none; overflow: hidden; }
+  .drop { position: absolute; top: 0; will-change: transform; filter: drop-shadow(1px 3px 2px rgba(60, 30, 0, .35));
+    animation: fall var(--dur) cubic-bezier(.45, 0, .9, .6) var(--delay) both; }
+  .drop img { display: block; width: 100%; animation: sway calc(var(--dur) / 2.5) ease-in-out var(--delay) infinite alternate; }
+  @keyframes fall { from { transform: translateY(-80px); } to { transform: translateY(calc(100vh + 80px)); } }
+  @keyframes sway { from { transform: translateX(calc(var(--sway) * -1)); } to { transform: translateX(var(--sway)); } }
   #toast { position: fixed; left: 50%; bottom: calc(22px + env(safe-area-inset-bottom)); transform: translateX(-50%);
     background: var(--ink); color: var(--paper); padding: 8px 18px; border-radius: 4px; font-style: italic; font-size: 17px;
     opacity: 0; transition: opacity .2s; pointer-events: none; z-index: 60; max-width: 90vw; }
@@ -421,6 +428,13 @@ const Sound = (() => {
     },
     rustle() { noise({ dur: .25, f0: 900, f1: 1800, q: .6, gain: .1, attack: .08 }); },
     nope() { tone({ freq: 220, f1: 160, dur: .18, gain: .14, type: 'triangle' }); },
+    // Pepernoten pattering down: lots of tiny, dry little taps.
+    patter(seconds = 3) {
+      for (let i = 0; i < 26; i++) {
+        const t = Math.random() * seconds;
+        noise({ dur: .03 + Math.random() * .03, f0: 1800 + Math.random() * 2500, q: 5, gain: .05 + Math.random() * .07, attack: .003, delay: t });
+      }
+    },
     // Continuous quill scratch while dragging
     scratchStart() {
       const c = ac(); if (!c || scratch) return;
@@ -1271,7 +1285,36 @@ async function claim(owner, id, opt = 0) {
   try {
     const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: byValue(opt), at: Date.now() });
     if (!ok) { toast('al gekozen'); Sound.nope(); render(); }
+    else maybeRain();
   } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+}
+
+// ---------- Easter egg: it rains pepernoten ----------
+// Every 3 cadeautjes you cross off there's a 50% chance pepernoten fall from the sky.
+const RAIN_EVERY = 3, RAIN_CHANCE = .5;
+function maybeRain() {
+  const n = (parseInt(store.get('sint-strikes'), 10) || 0) + 1;
+  if (n < RAIN_EVERY) { store.set('sint-strikes', String(n)); return; }
+  store.set('sint-strikes', '0');
+  if (Math.random() < RAIN_CHANCE) setTimeout(pepernotenRain, 450);   // just after the strike is drawn
+}
+function pepernotenRain(count = 40) {
+  if (reduceMotion) return;
+  const rain = div('rain');
+  let longest = 0;
+  for (let i = 0; i < count; i++) {
+    let n; do { n = 1 + Math.floor(Math.random() * PN_COUNT); } while (n === PN_PAIR);
+    const size = 22 + Math.random() * 22, dur = 2.2 + Math.random() * 1.8, delay = Math.random() * 1.6;
+    longest = Math.max(longest, dur + delay);
+    const d = div('drop');
+    d.style.cssText = `left:${(Math.random() * 100).toFixed(1)}%;width:${size.toFixed(0)}px;margin-left:${(-size / 2).toFixed(0)}px;`
+      + `--dur:${dur.toFixed(2)}s;--delay:${delay.toFixed(2)}s;--sway:${(6 + Math.random() * 14).toFixed(0)}px`;
+    d.innerHTML = `<img src="img/pn${n}.png" alt="" draggable="false">`;
+    rain.appendChild(d);
+  }
+  document.body.appendChild(rain);
+  Sound.patter(longest * .8);
+  setTimeout(() => rain.remove(), (longest + .3) * 1000);
 }
 async function unclaim(owner, id) {
   const c = claims[owner] && claims[owner][id];
