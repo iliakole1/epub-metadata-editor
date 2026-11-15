@@ -1311,13 +1311,15 @@ async function claim(owner, id, opt = 0) {
 }
 
 // ---------- Easter egg: it rains pepernoten ----------
-// Every 3 times you cross something off or mark it as bought, pepernoten fall from the sky.
-const RAIN_EVERY = 3, RAIN_CHANCE = 1;
-function maybeRain() {
-  const n = (parseInt(store.get('sint-strikes'), 10) || 0) + 1;
-  if (n < RAIN_EVERY) { store.set('sint-strikes', String(n)); return; }
-  store.set('sint-strikes', '0');
-  if (Math.random() < RAIN_CHANCE) setTimeout(pepernotenRain, 450);   // just after the strike is drawn
+// Every 3 times: striking off on the regular lists gives a 25% chance of pepernoten,
+// marking things as bought on your winkellijstje always does. (Counted separately, on this device.)
+const RAIN_EVERY = 3, RAIN_CHANCE = { strike: .25, bought: 1 };
+function maybeRain(kind = 'strike') {
+  const key = kind === 'bought' ? 'sint-bought' : 'sint-strikes';
+  const n = (parseInt(store.get(key), 10) || 0) + 1;
+  if (n < RAIN_EVERY) { store.set(key, String(n)); return; }
+  store.set(key, '0');
+  if (Math.random() < RAIN_CHANCE[kind]) setTimeout(pepernotenRain, 450);   // just after the strike is drawn
 }
 function crumbLayer(create = true) {
   let layer = document.querySelector('body > .crumbs');
@@ -1390,7 +1392,7 @@ async function toggleBought(owner, id) {
   const c = claims[owner] && claims[owner][id];
   if (!c || claimBy(c) !== me.key) return;
   const now = !isBought(c);
-  if (now) { Sound.seal(); maybeRain(); } else Sound.erase();
+  if (now) { Sound.seal(); maybeRain('bought'); } else Sound.erase();
   try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(claimOpt(c), now) }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
