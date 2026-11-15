@@ -119,6 +119,15 @@
   .alt .writeline { align-items: center; }
   .ofbtn { background: none; border: 1px dashed var(--gold); color: var(--gold); border-radius: 14px; padding: 3px 12px;
     font: italic 16px var(--serif); cursor: pointer; justify-self: start; margin-top: 4px; }
+  .buy { flex: none; background: none; border: 1px dashed var(--ink-soft); color: var(--ink-soft); border-radius: 12px;
+    padding: 2px 10px; font: italic 15px var(--serif); cursor: pointer; }
+  .stamp { flex: none; background: none; cursor: pointer; color: #b0141e; border: 2.5px solid #b0141e; border-radius: 4px;
+    padding: 1px 7px 0; font: 700 14px/1.2 var(--serif); letter-spacing: .14em; text-transform: uppercase;
+    transform: rotate(-9deg); opacity: .85; box-shadow: inset 0 0 0 1px rgba(176, 20, 30, .35);
+    -webkit-mask-image: radial-gradient(circle at 30% 40%, #000 60%, rgba(0,0,0,.75) 100%); mask-image: radial-gradient(circle at 30% 40%, #000 60%, rgba(0,0,0,.75) 100%);
+    animation: stampIn .25s cubic-bezier(.3, 1.6, .5, 1); }
+  @keyframes stampIn { from { transform: rotate(-9deg) scale(1.8); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: .85; } }
+  .progress { text-align: center; font-style: italic; color: var(--ink-soft); margin: -4px 0 8px; }
   .quiet { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-size: 20px; padding: 4px 6px; }
 
   /* Writing lines (forms) */
@@ -1235,7 +1244,7 @@ function viewEveryone() {
   }).join('');
 }
 
-function personEntry(owner, id, it, editable = false) {
+function personEntry(owner, id, it, editable = false, shop = false) {
   const c = claims[owner] && claims[owner][id];
   const state = !c ? 'free' : claimBy(c) === me.key ? 'mine' : 'taken';
   const picked = state === 'mine' ? claimOpt(c) : -1;          // only you see which option you picked
@@ -1246,7 +1255,10 @@ function personEntry(owner, id, it, editable = false) {
       ${editable ? GRIP(id) : ''}
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
       <div class="body"><div><span class="txt${picked === 0 && optsOf(it).length ? ' picked' : ''}">${esc(it.title)}${INK}${picked === 0 && optsOf(it).length ? CIRCLE : ''}</span></div>${itemMeta(it)}${altLines(it, picked)}</div>
-      ${state === 'mine' ? `<span class="by">ik</span>` : ''}
+      ${shop && state === 'mine'
+        ? (isBought(c) ? `<button class="stamp" data-bought="${id}" data-owner="${esc(owner)}" aria-label="Niet meer gekocht">gekocht</button>`
+                       : `<button class="buy" data-bought="${id}" data-owner="${esc(owner)}" aria-label="Markeer als gekocht">gekocht?</button>`)
+        : state === 'mine' ? `<span class="by">ik</span>` : ''}
       ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
       <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
     </div>`;
@@ -1264,27 +1276,32 @@ function viewPerson(key) {
 }
 
 function viewBuying() {
-  let total = 0, out = '';
+  let total = 0, out = '', count = 0, bought = 0;
   for (const p of people) {
     if (p.key === me.key) continue;
     const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claimBy(claims[p.key][id]) === me.key);
     if (!mine.length) continue;
+    count += mine.length; bought += mine.filter(([id]) => isBought(claims[p.key][id])).length;
     mine.forEach(([id, it]) => {                       // count the price of the option you picked
       const n = claimOpt(claims[p.key][id]), o = n ? optsOf(it)[n - 1] : it;
       const price = (o || it).price; if (price != null) total += price;
     });
-    out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it)).join('');
+    out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it, false, true)).join('');
   }
   if (!out) return `<div class="empty">je winkellijstje is nog leeg</div>`;
-  return out + (total ? `<div class="total">totaal ${euro(Math.round(total * 100) / 100)}</div>` : '');
+  return `<div class="progress">${bought} van ${count} gekocht</div>` + out
+    + (total ? `<div class="total">totaal ${euro(Math.round(total * 100) / 100)}</div>` : '');
 }
 
 // ---------- Striking off: swipe across, or tap the word / the box ----------
 // A claim's 'by' is "key" or "key:n", n being the picked "of" option (1-based; none = the main line).
 // Kept in one field so the database rules don't need to change.
-const claimBy = c => String(c.by).split(':')[0];
-const claimOpt = c => +(String(c.by).split(':')[1] || 0);
-const byValue = opt => opt ? `${me.key}:${opt}` : me.key;
+// …and a trailing "!" once the buyer has marked it as bought (only the buyer sees that).
+const rawBy = c => String(c.by).replace(/!$/, '');
+const claimBy = c => rawBy(c).split(':')[0];
+const claimOpt = c => +(rawBy(c).split(':')[1] || 0);
+const isBought = c => String(c.by).endsWith('!');
+const byValue = (opt, bought = false) => (opt ? `${me.key}:${opt}` : me.key) + (bought ? '!' : '');
 async function claim(owner, id, opt = 0) {
   try {
     const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: byValue(opt), at: Date.now() });
@@ -1294,8 +1311,8 @@ async function claim(owner, id, opt = 0) {
 }
 
 // ---------- Easter egg: it rains pepernoten ----------
-// Every 3 cadeautjes you cross off there's a 50% chance pepernoten fall from the sky.
-const RAIN_EVERY = 3, RAIN_CHANCE = .5;
+// Every 3 times you cross something off or mark it as bought, pepernoten fall from the sky.
+const RAIN_EVERY = 3, RAIN_CHANCE = 1;
 function maybeRain() {
   const n = (parseInt(store.get('sint-strikes'), 10) || 0) + 1;
   if (n < RAIN_EVERY) { store.set('sint-strikes', String(n)); return; }
@@ -1369,10 +1386,18 @@ async function unclaim(owner, id) {
   try { await db.update({ [`claims/${owner}/${id}`]: null }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
+async function toggleBought(owner, id) {
+  const c = claims[owner] && claims[owner][id];
+  if (!c || claimBy(c) !== me.key) return;
+  const now = !isBought(c);
+  if (now) { Sound.seal(); maybeRain(); } else Sound.erase();
+  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(claimOpt(c), now) }); }
+  catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
+}
 async function switchClaim(owner, id, opt) {
   const c = claims[owner] && claims[owner][id];
   if (!c || claimBy(c) !== me.key) return;
-  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(opt) }); }
+  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(opt, isBought(c)) }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
 
@@ -1398,7 +1423,7 @@ function attachStrike(entry) {
   };
 
   entry.addEventListener('pointerdown', e => {
-    if (e.target.closest('a, .quiet, .grip') || e.button > 0) return;
+    if (e.target.closest('a, .quiet, .grip, .stamp, .buy') || e.button > 0) return;
     start = { x: e.clientX, y: e.clientY, id: e.pointerId, target: e.target };
     drag = false;
   });
@@ -1575,6 +1600,7 @@ function bind() {
     vals.forEach((v, k) => { for (const [f, val] of [['T', v.title], ['L', v.link], ['P', v.price]]) { const el = document.getElementById(p + f + k); if (el) el.value = val; } });
   });
   $app.querySelectorAll('[data-grip]').forEach(attachReorder);
+  $app.querySelectorAll('[data-bought]').forEach(b => b.onclick = e => { e.stopPropagation(); toggleBought(b.dataset.owner, b.dataset.bought); });
   const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; altCount.e = 0; render(); };
   const ed = document.getElementById('editForm');
   if (ed) ed.onsubmit = async e => {
