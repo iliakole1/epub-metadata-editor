@@ -86,6 +86,10 @@
   .txt { position: relative; display: inline-block; word-wrap: break-word; max-width: 100%; transition: color .3s; }
   .ink { position: absolute; left: -3%; top: 50%; width: 106%; height: 16px; margin-top: -7px; pointer-events: none; overflow: visible;
     clip-path: inset(-20% calc(100% - var(--p)) -20% 0); }
+  /* Wishes that wrap onto several lines get one stroke per line, drawn in reading order:
+     line k covers the part [--a, --a + 1/--k] of the overall progress --p. */
+  .ink-line { display: block; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 16' preserveAspectRatio='none'%3E%3Cpath d='M1 9.5 C 12 7.2, 22 10.6, 34 8.4 S 58 6.8, 70 9.2 S 90 8.6, 99 6.9' fill='none' stroke='%238e1b14' stroke-width='2.6' stroke-linecap='round' vector-effect='non-scaling-stroke'/%3E%3Cpath d='M3 10.6 C 18 9.6, 40 10.4, 62 9.4 S 88 9.6, 97 8.4' fill='none' stroke='%238e1b14' stroke-width='1.1' stroke-linecap='round' opacity='.55' vector-effect='non-scaling-stroke'/%3E%3C/svg%3E") 0 0 / 100% 100% no-repeat;
+    clip-path: inset(-20% calc(100% - clamp(0%, (var(--p) - var(--a)) * var(--k), 100%)) -20% 0); }
   .entry.anim { transition: --p .35s ease-out; }
   .entry.struck { --p: 100%; }
   .entry.struck .txt, .entry.struck .meta > span { color: var(--ink-soft); }
@@ -1001,6 +1005,51 @@ function logout() {
   showCover(() => drawNames(), true);           // close the book
 }
 
+// ---------- Strike lines for wishes that wrap onto more than one line ----------
+// The single ink stroke sits at the vertical middle of the wish, which on two lines falls in the
+// gap between them. Measure the text's line boxes and give each line its own stroke instead.
+function layoutInks(root = $app) {
+  root.querySelectorAll('.txt').forEach(txt => {
+    const ink = txt.querySelector('svg.ink');
+    if (!ink) return;
+    txt.querySelectorAll('.ink-line').forEach(el => el.remove());
+    ink.style.display = '';
+    const tn = txt.firstChild;
+    if (!tn || tn.nodeType !== 3) return;
+    const range = document.createRange(); range.selectNodeContents(tn);
+    const lines = [];
+    for (const r of range.getClientRects()) {
+      if (r.width < 1) continue;
+      const l = lines.find(L => Math.abs(L.mid - (r.top + r.bottom) / 2) < 6);
+      if (l) { l.left = Math.min(l.left, r.left); l.right = Math.max(l.right, r.right); }
+      else lines.push({ left: r.left, right: r.right, mid: (r.top + r.bottom) / 2 });
+    }
+    if (lines.length < 2) return;
+    lines.sort((a, b) => a.mid - b.mid);
+    const base = txt.getBoundingClientRect();
+    const total = lines.reduce((t, L) => t + (L.right - L.left), 0);
+    let cum = 0;
+    ink.style.display = 'none';
+    const lineH = base.height / lines.length;          // each line's strip of the wish
+    lines.forEach((L, k) => { L.mid = base.top + (k + .5) * lineH; });
+    for (const L of lines) {
+      const w = L.right - L.left;
+      const el = document.createElement('i');      // the stroke as a stretched background image
+      el.className = 'ink ink-line';
+      txt.appendChild(el);
+      el.style.left = (L.left - base.left - w * .03) + 'px';
+      el.style.width = (w * 1.06) + 'px';
+      el.style.top = (L.mid - base.top) + 'px';
+      el.style.setProperty('--a', (cum / total * 100) + '%');
+      el.style.setProperty('--k', total / w);
+      cum += w;
+    }
+  });
+}
+let inkTimer;
+addEventListener('resize', () => { clearTimeout(inkTimer); inkTimer = setTimeout(() => layoutInks(), 150); });
+if (document.fonts) document.fonts.ready.then(() => layoutInks());
+
 // ---------- Main views ----------
 function render() {
   if (!me) return;
@@ -1027,6 +1076,7 @@ function render() {
   $app.querySelectorAll('form.add input').forEach(i => { const k = draftKey(i); if (k in drafts) i.value = drafts[k]; });
   if (keepFocus) { const el = document.getElementById(keepFocus); if (el) el.focus({ preventScroll: true }); }
   bind();
+  layoutInks();
   if (scrollToForm) {                 // keep the writing line in view, like a chat
     scrollToForm = false;
     // Bring the writing line into view, clear of the folded corner at the bottom.
