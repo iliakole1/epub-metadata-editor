@@ -128,6 +128,12 @@
     animation: stampIn .25s cubic-bezier(.3, 1.6, .5, 1); }
   @keyframes stampIn { from { transform: rotate(-9deg) scale(1.8); opacity: 0; } to { transform: rotate(-9deg) scale(1); opacity: .85; } }
   .progress { text-align: center; font-style: italic; color: var(--ink-soft); margin: -4px 0 8px; }
+  .kidtag { font-size: 14px; font-style: italic; color: var(--gold); margin-top: 2px; }
+  .kidtag.set { color: var(--red); }
+  .forrow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 4px; }
+  .forbtn { background: none; border: 1px solid var(--rule); border-radius: 14px; padding: 3px 11px; cursor: pointer;
+    font: italic 15px var(--serif); color: var(--ink-soft); }
+  .forbtn.on { border-color: var(--red); color: var(--red); background: rgba(142, 27, 20, .06); }
   .quiet { background: none; border: 0; cursor: pointer; color: var(--ink-soft); font-size: 20px; padding: 4px 6px; }
 
   /* Writing lines (forms) */
@@ -327,7 +333,15 @@ const people = cfg.names.map(name => ({ name, key: keyFor(name) }));   // in the
 // Little ones whose lists are written by their parents: { kidKey: [parentKey, ...] }
 const guardians = Object.fromEntries(Object.entries(cfg.kids || {}).map(([kid, ps]) => [keyFor(kid), ps.map(keyFor)]));
 const isKid = key => key in guardians;
-const canWrite = key => me && (key === me.key || (guardians[key] || []).includes(me.key));
+// Wishes for the little ones that aren't for one specific child live in two shared groups:
+//  EITHER — "Ize óf Lea": shown on every kid's page, one strike covers all of them (noting who it's for)
+//  EACH   — "één voor elk": shown on every kid's page, struck off separately per child
+const EITHER = 'kids-either', EACH = 'kids-each';
+const kidKeys = Object.keys(guardians);
+const isGroup = k => k === EITHER || k === EACH;
+const isParent = () => me && kidKeys.some(k => guardians[k].includes(me.key));
+const canWrite = key => me && (key === me.key || (guardians[key] || []).includes(me.key) || (isGroup(key) && isParent()));
+const kidNames = (sep, first) => [first, ...kidKeys.filter(k => k !== first)].filter(Boolean).map(k => nameOf(k)).join(sep);
 const nameOf = key => (people.find(p => p.key === key) || { name: key }).name;
 const euro = n => '€' + (Number.isInteger(n) ? n : n.toFixed(2)).toString().replace('.', ',');
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -542,6 +556,7 @@ function subscribe() {
     if (p.key === me.key) continue;
     subs.push(db.on('claims/' + p.key, v => { claims[p.key] = v || {}; render(); }));
   }
+  if (kidKeys.length) for (const g of [EITHER, EACH]) subs.push(db.on('claims/' + g, v => { claims[g] = v || {}; render(); }));
 }
 
 // ---------- Page curl ----------
@@ -689,7 +704,7 @@ function pageList() {
   return l;
 }
 const pageIndex = () => pageList().findIndex(p => p.tab === tab && p.viewing === viewing);
-function setPage(i) { const p = pageList()[i]; tab = p.tab; viewing = p.viewing; editing = null; }
+function setPage(i) { const p = pageList()[i]; tab = p.tab; viewing = p.viewing; editing = null; forChoice = 'own'; }
 function goTo(i) {
   const cur = pageIndex();
   if (i === cur || i < 0 || i >= pageList().length) return;
@@ -1032,6 +1047,27 @@ function logout() {
   showCover(() => drawNames(), true);           // close the book
 }
 
+// ---------- Recognising wishes for the little ones by their wording ----------
+// "(voor Ize of Lea)" → EITHER, "(één voor Ize en één voor Lea)" / "(voor Ize en Lea)" → EACH,
+// "(voor Lea)" → Lea's own page. Returns { owner, title } with the note taken out, or null.
+function routeWish(title) {
+  const kidOf = w => kidKeys.find(k => nameOf(k).toLowerCase() === String(w).toLowerCase());
+  const tidy = t => t.replace(/\s{2,}/g, ' ').replace(/^[\s,–-]+|[\s,–-]+$/g, '').trim();
+  const W = '([\\p{L}]+)';
+  const tries = [
+    [new RegExp(`\\(?\\s*(?:één|een)\\s+voor\\s+${W}\\s+en\\s+(?:één|een)\\s+voor\\s+${W}\\s*\\)?`, 'iu'), m => kidOf(m[1]) && kidOf(m[2]) && EACH],
+    [new RegExp(`\\(?\\s*voor\\s+${W}\\s+(?:of|óf)\\s+${W}\\s*\\)?`, 'iu'), m => kidOf(m[1]) && kidOf(m[2]) && EITHER],
+    [new RegExp(`\\(?\\s*voor\\s+${W}\\s+(?:en|én)\\s+${W}\\s*\\)?`, 'iu'), m => kidOf(m[1]) && kidOf(m[2]) && EACH],
+    [new RegExp(`\\(?\\s*voor\\s+${W}\\s*\\)?`, 'iu'), m => kidOf(m[1])],
+  ];
+  for (const [re, pick] of tries) {
+    const m = title.match(re);
+    const owner = m && pick(m);
+    if (owner) return { owner, title: tidy(title.replace(m[0], ' ')) || title };
+  }
+  return null;
+}
+
 // ---------- Strike lines for wishes that wrap onto more than one line ----------
 // The single ink stroke sits at the vertical middle of the wish, which on two lines falls in the
 // gap between them. Measure the text's line boxes and give each line its own stroke instead.
@@ -1201,9 +1237,13 @@ function altsToOpts(raw) {
   return opts;
 }
 
+let forChoice = 'own';                           // on a kid's page: own | either | each
 function writeForm(owner, placeholder) {
+  const choose = isKid(owner) && kidKeys.length > 1 ? `
+      <div class="forrow">${[['own', 'alleen ' + nameOf(owner)], ['either', kidNames(' óf ', owner)], ['each', 'één voor elk']]
+        .map(([v, l]) => `<button type="button" class="forbtn${forChoice === v ? ' on' : ''}" data-for="${v}">${esc(l)}</button>`).join('')}</div>` : '';
   return `
-    <form class="add addform" id="addForm" data-owner="${esc(owner)}">
+    <form class="add addform" id="addForm" data-owner="${esc(owner)}">${choose}
       <div class="writeline">
         <input class="line" id="fTitle" placeholder="${esc(placeholder)}" maxlength="200" required enterkeyhint="send">
         <button class="seal" type="submit" aria-label="Toevoegen">+</button>
@@ -1232,10 +1272,23 @@ function editEntry(id, it, owner = me.key) {
     </form>`;
 }
 
+// What's on someone's page. Each entry knows where the wish is stored (iowner/iid) and where
+// its strike is stored (cowner/cid) — for "één voor elk" each child has its own strike.
+function pageEntries(key) {
+  const out = sortedItems(key).map(([id, it]) => ({ it, iowner: key, iid: id, cowner: key, cid: id, kind: 'own' }));
+  if (isKid(key)) {
+    for (const [id, it] of sortedItems(EITHER)) out.push({ it, iowner: EITHER, iid: id, cowner: EITHER, cid: id, kind: 'either', kid: key });
+    for (const [id, it] of sortedItems(EACH)) out.push({ it, iowner: EACH, iid: id, cowner: EACH, cid: `${id}~${key}`, kind: 'each', kid: key });
+    out.sort((a, b) => (a.it.created || 0) - (b.it.created || 0));
+  }
+  return out;
+}
+const claimOf = e => claims[e.cowner] && claims[e.cowner][e.cid];
+
 function viewEveryone() {
   return people.filter(p => p.key !== me.key).map(p => {
-    const list = sortedItems(p.key);
-    const taken = list.filter(([id]) => claims[p.key] && claims[p.key][id]).length;
+    const entries = pageEntries(p.key), list = entries;
+    const taken = entries.filter(claimOf).length;
     return `
       <div class="person" data-view="${esc(p.key)}">
         <span class="name">${esc(p.name)}</span>
@@ -1244,49 +1297,60 @@ function viewEveryone() {
   }).join('');
 }
 
-function personEntry(owner, id, it, editable = false, shop = false) {
-  const c = claims[owner] && claims[owner][id];
+function personEntry(e, editable = false, shop = false) {
+  const { it, iowner, iid, cowner, cid, kind, kid } = e;
+  const c = claimOf(e);
   const state = !c ? 'free' : claimBy(c) === me.key ? 'mine' : 'taken';
   const picked = state === 'mine' ? claimOpt(c) : -1;          // only you see which option you picked
-  const fresh = editable && id === justAdded;
+  const fresh = editable && iid === justAdded;
   if (fresh) { justAdded = null; scrollToForm = true; }
+  // small label for the shared kids' wishes: "Ize óf Lea" → once struck: "voor Lea"; "één voor elk"
+  const forKid = kind === 'either' && c && claimKid(c);
+  const tag = kind === 'either' ? (forKid ? `voor ${esc(nameOf(forKid))}` : esc(kidNames(' óf ', kid)))
+            : kind === 'each' ? 'één voor elk' : '';
   return `
-    <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(owner)}" data-id="${id}" data-state="${state}">
-      ${editable ? GRIP(id) : ''}
+    <div class="entry swipe ${state} ${c ? 'struck' : ''}${fresh ? ' fresh' : ''}" data-owner="${esc(cowner)}" data-id="${esc(cid)}"
+      data-iowner="${esc(iowner)}" data-iid="${esc(iid)}" data-kid="${esc(kid || '')}" data-state="${state}">
+      ${editable ? GRIP(iid) : ''}
       <button class="box" aria-label="${state === 'free' ? 'Afstrepen' : state === 'mine' ? 'Ongedaan maken' : 'Al gekozen'}">${c ? '✗' : ''}</button>
-      <div class="body"><div><span class="txt${picked === 0 && optsOf(it).length ? ' picked' : ''}">${esc(it.title)}${INK}${picked === 0 && optsOf(it).length ? CIRCLE : ''}</span></div>${itemMeta(it)}${altLines(it, picked)}</div>
+      <div class="body"><div><span class="txt${picked === 0 && optsOf(it).length ? ' picked' : ''}">${esc(it.title)}${INK}${picked === 0 && optsOf(it).length ? CIRCLE : ''}</span></div>${itemMeta(it)}${altLines(it, picked)}${tag ? `<div class="kidtag${forKid ? ' set' : ''}">${tag}</div>` : ''}</div>
       ${shop && state === 'mine'
-        ? (isBought(c) ? `<button class="stamp" data-bought="${id}" data-owner="${esc(owner)}" aria-label="Niet meer gekocht">gekocht</button>`
-                       : `<button class="buy" data-bought="${id}" data-owner="${esc(owner)}" aria-label="Markeer als gekocht">gekocht?</button>`)
+        ? (isBought(c) ? `<button class="stamp" data-bought="${esc(cid)}" data-owner="${esc(cowner)}" aria-label="Niet meer gekocht">gekocht</button>`
+                       : `<button class="buy" data-bought="${esc(cid)}" data-owner="${esc(cowner)}" aria-label="Markeer als gekocht">gekocht?</button>`)
         : state === 'mine' ? `<span class="by">ik</span>` : ''}
-      ${editable ? `<button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
-      <button class="quiet" data-del="${id}" data-owner="${esc(owner)}" aria-label="Verwijderen">✕</button>` : ''}
+      ${editable ? `<button class="quiet" data-edit="${esc(iid)}" aria-label="Bewerken">✎</button>
+      <button class="quiet" data-del="${esc(iid)}" data-owner="${esc(iowner)}" aria-label="Verwijderen">✕</button>` : ''}
     </div>`;
 }
 
 function viewPerson(key) {
-  const list = sortedItems(key);
+  const entries = pageEntries(key);
   return `
     <button class="back" data-back>‹ iedereen</button>
     <h2>${esc(nameOf(key))}</h2>
     ${canWrite(key)
-      ? list.map(([id, it]) => editing === id ? editEntry(id, it, key) : personEntry(key, id, it, true)).join('')
+      ? entries.map(e => editing === e.iid ? editEntry(e.iid, e.it, e.iowner) : personEntry(e, canWrite(e.iowner))).join('')
         + writeForm(key, `${nameOf(key)} wil…`)
-      : list.length ? list.map(([id, it]) => personEntry(key, id, it)).join('') : `<div class="empty">nog niets</div>`}`;
+      : entries.length ? entries.map(e => personEntry(e)).join('') : `<div class="empty">nog niets</div>`}`;
 }
 
 function viewBuying() {
   let total = 0, out = '', count = 0, bought = 0;
   for (const p of people) {
     if (p.key === me.key) continue;
-    const mine = sortedItems(p.key).filter(([id]) => claims[p.key] && claims[p.key][id] && claimBy(claims[p.key][id]) === me.key);
-    if (!mine.length) continue;
-    count += mine.length; bought += mine.filter(([id]) => isBought(claims[p.key][id])).length;
-    mine.forEach(([id, it]) => {                       // count the price of the option you picked
-      const n = claimOpt(claims[p.key][id]), o = n ? optsOf(it)[n - 1] : it;
-      const price = (o || it).price; if (price != null) total += price;
+    const mine = pageEntries(p.key).filter(e => {
+      const c = claimOf(e);
+      if (!c || claimBy(c) !== me.key) return false;
+      // an "Ize óf Lea" wish is listed under the child it's being bought for (or the first, if unknown)
+      return e.kind !== 'either' || (claimKid(c) || kidKeys[0]) === p.key;
     });
-    out += `<h3>${esc(p.name)}</h3>` + mine.map(([id, it]) => personEntry(p.key, id, it, false, true)).join('');
+    if (!mine.length) continue;
+    count += mine.length; bought += mine.filter(e => isBought(claimOf(e))).length;
+    mine.forEach(e => {                                // count the price of the option you picked
+      const n = claimOpt(claimOf(e)), o = n ? optsOf(e.it)[n - 1] : e.it;
+      const price = (o || e.it).price; if (price != null) total += price;
+    });
+    out += `<h3>${esc(p.name)}</h3>` + mine.map(e => personEntry(e, false, true)).join('');
   }
   if (!out) return `<div class="empty">je winkellijstje is nog leeg</div>`;
   return `<div class="progress">${bought} van ${count} gekocht</div>` + out
@@ -1297,14 +1361,20 @@ function viewBuying() {
 // A claim's 'by' is "key" or "key:n", n being the picked "of" option (1-based; none = the main line).
 // Kept in one field so the database rules don't need to change.
 // …and a trailing "!" once the buyer has marked it as bought (only the buyer sees that).
-const rawBy = c => String(c.by).replace(/!$/, '');
-const claimBy = c => rawBy(c).split(':')[0];
-const claimOpt = c => +(rawBy(c).split(':')[1] || 0);
-const isBought = c => String(c.by).endsWith('!');
-const byValue = (opt, bought = false) => (opt ? `${me.key}:${opt}` : me.key) + (bought ? '!' : '');
-async function claim(owner, id, opt = 0) {
+// …and "@kid" for an "Ize óf Lea" wish: which child it's being bought for. Format: key[:n][@kid][!]
+const parseBy = c => {
+  let s = String(c.by); const bought = s.endsWith('!'); if (bought) s = s.slice(0, -1);
+  const [main, kid = ''] = s.split('@'), [key, opt = 0] = main.split(':');
+  return { key, opt: +opt, kid, bought };
+};
+const claimBy = c => parseBy(c).key;
+const claimOpt = c => parseBy(c).opt;
+const claimKid = c => parseBy(c).kid;
+const isBought = c => parseBy(c).bought;
+const byValue = (opt, bought = false, kid = '') => (opt ? `${me.key}:${opt}` : me.key) + (kid ? '@' + kid : '') + (bought ? '!' : '');
+async function claim(owner, id, opt = 0, kid = '') {
   try {
-    const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: byValue(opt), at: Date.now() });
+    const ok = await db.setIfEmpty(`claims/${owner}/${id}`, { by: byValue(opt, false, owner === EITHER ? kid : ''), at: Date.now() });
     if (!ok) { toast('al gekozen'); Sound.nope(); render(); }
     else maybeRain();
   } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
@@ -1393,13 +1463,13 @@ async function toggleBought(owner, id) {
   if (!c || claimBy(c) !== me.key) return;
   const now = !isBought(c);
   if (now) { Sound.seal(); maybeRain('bought'); } else Sound.erase();
-  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(claimOpt(c), now) }); }
+  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(claimOpt(c), now, claimKid(c)) }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
 async function switchClaim(owner, id, opt) {
   const c = claims[owner] && claims[owner][id];
   if (!c || claimBy(c) !== me.key) return;
-  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(opt, isBought(c)) }); }
+  try { await db.update({ [`claims/${owner}/${id}/by`]: byValue(opt, isBought(c), claimKid(c)) }); }
   catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
 }
 
@@ -1409,7 +1479,7 @@ function setP(entry, frac, animate) {
 }
 
 function attachStrike(entry) {
-  const { owner, id, state } = entry.dataset;
+  const { owner, id, state, kid } = entry.dataset;
   const txt = entry.querySelector('.txt');
   let start = null, drag = false, lastX = 0, lastT = 0, frac = state === 'mine' ? 1 : 0;
 
@@ -1419,7 +1489,7 @@ function attachStrike(entry) {
     if (!alt && !target.closest('.box, .txt')) return;
     const opt = alt ? +alt.dataset.opt : 0;          // which line was tapped (0 = main line)
     Sound.unlock();
-    if (state === 'free') { setP(entry, 1, true); entry.classList.add('struck'); Sound.strike(); claim(owner, id, opt); }
+    if (state === 'free') { setP(entry, 1, true); entry.classList.add('struck'); Sound.strike(); claim(owner, id, opt, kid); }
     else if (!target.closest('.box') && opt !== claimOpt(claims[owner][id])) { Sound.strike(); switchClaim(owner, id, opt); }
     else { setP(entry, 0, true); entry.classList.remove('struck'); Sound.erase(); unclaim(owner, id); }
   };
@@ -1457,7 +1527,7 @@ function attachStrike(entry) {
     Sound.scratchStop();
     dragging = false;
     if (state === 'free') {
-      if (frac > .6) { setP(entry, 1, true); entry.classList.add('struck'); claim(owner, id); }
+      if (frac > .6) { setP(entry, 1, true); entry.classList.add('struck'); claim(owner, id, 0, kid); }
       else setP(entry, 0, true);
     } else {
       if (frac < .4) { setP(entry, 0, true); entry.classList.remove('struck'); Sound.erase(); unclaim(owner, id); }
@@ -1472,7 +1542,7 @@ function attachStrike(entry) {
 // ---------- Reordering: hold the ⠿ handle and drag a wish up or down ----------
 function attachReorder(grip) {
   const entry = grip.closest('.entry');
-  const owner = entry.dataset.owner;
+  const owner = entry.dataset.iowner || entry.dataset.owner;
   // Work in page coordinates (finger y + scroll) against each wish's layout position (offsetTop,
   // which ignores the drag transform), so tall wishes with several "of" lines move smoothly.
   let pid = null, startPageY = 0, startClientY = 0, startTop = 0, lastClientY = 0, autoRaf = 0;
@@ -1533,11 +1603,11 @@ function attachReorder(grip) {
     removeEventListener('pointercancel', end);
     entry.classList.remove('lifted'); entry.style.transform = '';
     // Save the new order by handing the existing timestamps out in the new order.
-    const ids = siblings().map(el => el.dataset.id);
-    const own = items[owner] || {};
-    const stamps = ids.map(id => (own[id] || {}).created || 0).sort((a, b) => a - b);
+    const refs = siblings().map(el => ({ o: el.dataset.iowner || el.dataset.owner, id: el.dataset.iid || el.dataset.id }));
+    const itemOf = r => (items[r.o] || {})[r.id];
+    const stamps = refs.map(r => (itemOf(r) || {}).created || 0).sort((a, b) => a - b);
     const upd = {};
-    ids.forEach((id, k) => { if (own[id] && own[id].created !== stamps[k]) upd[`items/${owner}/${id}/created`] = stamps[k]; });
+    refs.forEach((r, k) => { const it = itemOf(r); if (it && it.created !== stamps[k] && canWrite(r.o)) upd[`items/${r.o}/${r.id}/created`] = stamps[k]; });
     if (Object.keys(upd).length) {
       Sound.seal();
       try { await db.update(upd); } catch (err) { toast('niet opgeslagen: ' + err.message); render(); }
@@ -1574,7 +1644,16 @@ function bind() {
     add.reset(); altCount.f = 0;
     document.getElementById('fTitle').focus({ preventScroll: true });   // keep writing, keyboard stays up
     Sound.write();
-    const newId = db.newId(), owner = add.dataset.owner || me.key;
+    let owner = add.dataset.owner || me.key;
+    if (isKid(owner)) owner = forChoice === 'either' ? EITHER : forChoice === 'each' ? EACH : owner;
+    else if (owner === me.key && isParent()) {
+      const r = routeWish(it.title);                  // "(voor Ize of Lea)" on your own list → the kids' pages
+      if (r) {
+        it.title = r.title; owner = r.owner;
+        toast(owner === EITHER ? `naar ${kidNames(' óf ')}` : owner === EACH ? `naar ${kidNames(' en ')}: één voor elk` : `naar ${nameOf(owner)}`);
+      }
+    }
+    const newId = db.newId();
     if (!canWrite(owner)) return;
     justAdded = newId;
     try { await db.update({ [`items/${owner}/${newId}`]: it }); }
@@ -1583,7 +1662,7 @@ function bind() {
 
   $app.querySelectorAll('[data-edit]').forEach(b => b.onclick = () => {
     editing = b.dataset.edit;
-    const owner = b.closest('.entry')?.dataset.owner || me.key;
+    const en = b.closest('.entry'), owner = (en && (en.dataset.iowner || en.dataset.owner)) || me.key;
     altCount.e = optsOf((items[owner] || {})[editing] || {}).length;
     Sound.tap(); render();
   });
@@ -1599,6 +1678,10 @@ function bind() {
     vals.forEach((v, k) => { for (const [f, val] of [['T', v.title], ['L', v.link], ['P', v.price]]) { const el = document.getElementById(p + f + k); if (el) el.value = val; } });
   });
   $app.querySelectorAll('[data-grip]').forEach(attachReorder);
+  $app.querySelectorAll('[data-for]').forEach(b => b.onclick = () => {
+    forChoice = b.dataset.for; Sound.tap();
+    $app.querySelectorAll('[data-for]').forEach(x => x.classList.toggle('on', x === b));
+  });
   $app.querySelectorAll('[data-bought]').forEach(b => b.onclick = e => { e.stopPropagation(); toggleBought(b.dataset.owner, b.dataset.bought); });
   const cancel = document.getElementById('cancelEdit'); if (cancel) cancel.onclick = () => { editing = null; altCount.e = 0; render(); };
   const ed = document.getElementById('editForm');
@@ -1628,7 +1711,10 @@ function bind() {
     if (!confirm(`“${it.title}” verwijderen?`)) return;
     Sound.erase();
     // Also remove any (hidden) claim on it, so it doesn't linger on someone's gift list.
-    try { await db.update({ [`items/${owner}/${id}`]: null, [`claims/${owner}/${id}`]: null }); }
+    const upd = { [`items/${owner}/${id}`]: null };
+    if (owner === EACH) kidKeys.forEach(k => { upd[`claims/${EACH}/${id}~${k}`] = null; });
+    else upd[`claims/${owner}/${id}`] = null;
+    try { await db.update(upd); }
     catch (err) { toast('niet verwijderd: ' + err.message); }
   });
 }

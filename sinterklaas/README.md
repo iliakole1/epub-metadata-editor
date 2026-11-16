@@ -33,6 +33,14 @@ Little ones who don't log in themselves go in `kids`, with the parents who write
 `kids: { 'Lea': ['Anne', 'Mathijs'] }`. Kids don't appear on the login page; on their page the
 parents get the writing line and can edit or remove wishes, and they also see what others struck off.
 
+Wishes for the little ones can be for one child, for **either** child ("Ize óf Lea": shown on both
+pages, one strike covers both and notes who it's for), or **one each** ("één voor elk": shown on
+both pages, struck off separately). Parents pick this under the writing line on a kid's page, or
+just write "(voor Ize of Lea)", "(één voor Ize en één voor Lea)", "(voor Ize en Lea)" or
+"(voor Lea)" on their own list and the wish is moved automatically. Stored under
+`items/kids-either` and `items/kids-each`; the chosen child of an either-wish is kept in the
+claim's `by` value (`key@kid`), so no rules change is needed.
+
 ## Connecting Firebase (one-time, ~5 minutes)
 
 1. Go to <https://console.firebase.google.com>, click **Create a project**, give it a name
