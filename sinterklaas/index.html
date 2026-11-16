@@ -1047,6 +1047,23 @@ function logout() {
   showCover(() => drawNames(), true);           // close the book
 }
 
+// ---------- Moving a wish (e.g. "óf" → "één voor elk", or back to a parent's own list) ----------
+// The wish keeps its id; existing strikes move along so nobody loses their pick.
+function withKid(c, kid) {
+  const p = parseBy(c);
+  return { ...c, by: `${p.key}${p.opt ? ':' + p.opt : ''}${kid ? '@' + kid : ''}${p.bought ? '!' : ''}` };
+}
+async function moveWish(from, id, to, it) {
+  const upd = { [`items/${from}/${id}`]: null, [`items/${to}/${id}`]: it };
+  const old = [];                                   // existing strikes: { path, c, kid }
+  const paths = from === EACH ? kidKeys.map(k => [`claims/${EACH}/${id}~${k}`, k]) : [[`claims/${from}/${id}`, '']];
+  for (const [path, kid] of paths) { const c = await db.get(path); if (c) old.push({ path, c, kid: kid || parseBy(c).kid }); }
+  old.forEach(o => { upd[o.path] = null; });
+  if (to === EACH) old.forEach(o => { upd[`claims/${EACH}/${id}~${o.kid || kidKeys[0]}`] = withKid(o.c, ''); });
+  else if (old.length) upd[`claims/${to}/${id}`] = withKid(old[0].c, to === EITHER ? old[0].kid : '');
+  await db.update(upd);
+}
+
 // ---------- Recognising wishes for the little ones by their wording ----------
 // "(voor Ize of Lea)" → EITHER, "(één voor Ize en één voor Lea)" / "(voor Ize en Lea)" → EACH,
 // "(voor Lea)" → Lea's own page. Returns { owner, title } with the note taken out, or null.
@@ -1178,18 +1195,35 @@ const INK = `<svg class="ink" viewBox="0 0 100 16" preserveAspectRatio="none" ar
   <path d="M3 10.6 C 18 9.6, 40 10.4, 62 9.4 S 88 9.6, 97 8.4" fill="none" stroke="#8e1b14" stroke-width="1.1" stroke-linecap="round" opacity=".55" vector-effect="non-scaling-stroke"/>
 </svg>`;
 
+// A parent's own list also shows the wishes for their little ones (with a label), so they can rename,
+// reorder or delete them there too. Strikes aren't shown here (that's what the kids' pages are for).
+function myListEntries() {
+  const out = sortedItems(me.key).map(([id, it]) => ({ it, iowner: me.key, iid: id }));
+  if (isParent()) {
+    for (const k of kidKeys.filter(k => guardians[k].includes(me.key))) for (const [id, it] of sortedItems(k)) out.push({ it, iowner: k, iid: id });
+    for (const g of [EITHER, EACH]) for (const [id, it] of sortedItems(g)) out.push({ it, iowner: g, iid: id });
+    out.sort((a, b) => (a.it.created || 0) - (b.it.created || 0));
+  }
+  return out;
+}
+const kidLabel = owner => owner === EITHER ? kidNames(' óf ') : owner === EACH ? `één voor elk (${kidNames(' en ')})` : isKid(owner) ? `voor ${nameOf(owner)}` : '';
+// The note that puts a wish where it is — shown in the edit field, so changing it moves the wish.
+const kidNote = owner => owner === EITHER ? ` (voor ${kidNames(' of ')})`
+  : owner === EACH ? ` (één voor ${kidKeys.map(k => nameOf(k)).join(' en één voor ')})`
+  : isKid(owner) ? ` (voor ${nameOf(owner)})` : '';
+
 function viewMine() {
-  const list = sortedItems(me.key);
-  const html = list.map(([id, it]) => {
-    if (editing === id) return editEntry(id, it);
+  const html = myListEntries().map(({ it, iowner, iid: id }) => {
+    if (editing === id) return editEntry(id, it, iowner);
     const fresh = id === justAdded;
     if (fresh) { justAdded = null; scrollToForm = true; }
+    const label = kidLabel(iowner);
     return `
-      <div class="entry${fresh ? ' fresh' : ''}" data-id="${id}" data-owner="${esc(me.key)}">
+      <div class="entry${fresh ? ' fresh' : ''}" data-id="${id}" data-owner="${esc(iowner)}" data-iowner="${esc(iowner)}" data-iid="${id}">
         ${GRIP(id)}
-        <div class="body"><div><span class="txt">${esc(it.title)}</span></div>${itemMeta(it)}${altLines(it)}</div>
+        <div class="body"><div><span class="txt">${esc(it.title)}</span></div>${itemMeta(it)}${altLines(it)}${label ? `<div class="kidtag">${esc(label)}</div>` : ''}</div>
         <button class="quiet" data-edit="${id}" aria-label="Bewerken">✎</button>
-        <button class="quiet" data-del="${id}" aria-label="Verwijderen">✕</button>
+        <button class="quiet" data-del="${id}" data-owner="${esc(iowner)}" aria-label="Verwijderen">✕</button>
       </div>`;
   }).join('');
   return html + writeForm(me.key, 'Ik wil…');
@@ -1259,7 +1293,7 @@ function writeForm(owner, placeholder) {
 function editEntry(id, it, owner = me.key) {
   return `
     <form class="add" id="editForm" data-id="${id}" data-owner="${esc(owner)}" style="padding:8px 0;border-bottom:1px dashed var(--rule)">
-      <input class="line" id="eTitle" value="${esc(it.title)}" maxlength="200" required>
+      <input class="line" id="eTitle" value="${esc(it.title + (isParent() ? kidNote(owner) : ''))}" maxlength="200" required>
       <div class="two">
         <input class="line" id="eLink" value="${esc(it.link || '')}" placeholder="link" inputmode="url">
         <input class="line" id="ePrice" value="${it.price != null ? String(it.price).replace('.', ',') : ''}" placeholder="€" inputmode="decimal">
@@ -1695,13 +1729,28 @@ function bind() {
     if (Number.isNaN(price)) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
     const opts = altsToOpts(readAlts('e'));
     if (!opts) { toast('prijs moet een getal zijn'); Sound.nope(); return; }
-    const it = { title, created: old.created || Date.now() };
+    // Parents: the note in the title decides where the wish lives. No note on a kid's wish → it
+    // becomes the editing parent's own wish; a new note on their own wish → it moves to the kids.
+    let target = owner, cleanTitle = title;
+    if (isParent()) {
+      const r = routeWish(title);
+      if (r) { target = r.owner; cleanTitle = r.title; }
+      else if (isKid(owner) || isGroup(owner)) target = me.key;
+    }
+    const it = { title: cleanTitle, created: old.created || Date.now() };
     const link = normLink(document.getElementById('eLink').value); if (link) it.link = link;
     if (price != null) it.price = price;
     if (opts.length) it.opts = opts;
     editing = null; altCount.e = 0;
     Sound.write();
-    try { await db.update({ [`items/${owner}/${id}`]: it }); }
+    try {
+      if (target === owner) await db.update({ [`items/${owner}/${id}`]: it });
+      else {
+        await moveWish(owner, id, target, it);
+        toast(target === EITHER ? `naar ${kidNames(' óf ')}` : target === EACH ? `één voor elk (${kidNames(' en ')})`
+          : isKid(target) ? `naar ${nameOf(target)}` : 'naar je eigen verlanglijstje');
+      }
+    }
     catch (err) { toast('niet opgeslagen: ' + err.message); }
   };
 
