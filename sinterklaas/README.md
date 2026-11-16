@@ -41,6 +41,11 @@ just write "(voor Ize of Lea)", "(één voor Ize en één voor Lea)", "(voor Ize
 `items/kids-either` and `items/kids-each`; the chosen child of an either-wish is kept in the
 claim's `by` value (`key@kid`), so no rules change is needed.
 
+The kids' wishes also show on their parents' own list (with a label). When a parent edits one, the
+note appears in the title (e.g. "slaapwekker (voor Ize of Lea)"): changing it moves the wish
+(óf ↔ één voor elk ↔ one child), removing it makes it the parent's own wish, and adding a note to
+one of their own wishes moves it to the kids. Existing strikes move along.
+
 ## Connecting Firebase (one-time, ~5 minutes)
 
 1. Go to <https://console.firebase.google.com>, click **Create a project**, give it a name
