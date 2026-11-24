@@ -82,6 +82,23 @@
     -webkit-user-select: text; user-select: text; }
   .numrow input:focus { border-color: var(--blue); }
   .dis .opt, .dis input { pointer-events: none; }
+  /* extra oefenvormen */
+  .sentence { font-size: 19px; line-height: 1.7; margin: 4px 0 16px; }
+  .blank { display: inline-block; min-width: 76px; border-bottom: 3px solid var(--blue); text-align: center; padding: 0 6px; color: var(--blue-d); }
+  .blank.good { border-color: var(--green); color: var(--green-d); } .blank.bad { border-color: var(--red); color: var(--red-d); }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; } .chip { text-align: center; padding: 11px 18px; }
+  .picks { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .pickb { display: grid; place-items: center; padding: 14px; }
+  .pickb svg.sign { width: 92px; height: 92px; }
+  .match { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; } .match > div { display: grid; gap: 10px; align-content: start; }
+  .match .opt { min-height: 76px; display: grid; place-items: center; text-align: center; padding: 8px 10px; font-size: 15px; }
+  .match svg.sign { width: 54px; height: 54px; } .match .opt.good { opacity: .55; }
+  .bucket { display: grid; gap: 12px; }
+  .brow { border: 2px solid var(--line); border-radius: 14px; padding: 10px 12px; display: grid; gap: 8px; }
+  .bbtns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; } .bbtns .opt { text-align: center; padding: 8px 6px; font-size: 15px; }
+  /* theoriekaartjes */
+  .tcard { border: 2px solid var(--line); border-left: 6px solid var(--c); border-radius: 14px; padding: 12px 14px; margin-bottom: 12px; }
+  .tcard h4 { margin: 0 0 4px; font-size: 18px; font-weight: 900; color: var(--c); } .tcard p { margin: 0; font-weight: 600; font-size: 16px; line-height: 1.45; }
+  .book { margin-left: 10px; border: 0; background: rgba(255,255,255,.22); border-radius: 12px; font-size: 20px; padding: 6px 9px; cursor: pointer; }
 
   .sheet { position: fixed; left: 0; right: 0; bottom: 0; z-index: 10; padding: 16px 16px calc(16px + env(safe-area-inset-bottom)); transform: translateY(110%); transition: transform .25s cubic-bezier(.2,.9,.3,1.1); }
   .sheet.show { transform: none; }
@@ -111,12 +128,14 @@
 <div id="app"></div>
 <script src="questions.js?v=2"></script>
 <script src="questions2.js?v=2"></script>
+<script src="questions3.js?v=1"></script>
 <script>
 (() => {
 const $app = document.getElementById('app');
 const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const THEMES = window.THEMES;
-const ALL = Object.fromEntries(THEMES.flatMap(t => t.qs.map(q => [q.id, q])));
+const THEORY = window.THEORY || {}, EXTRA = window.EXTRA || {};
+const ALL = Object.fromEntries(THEMES.flatMap(t => [...t.qs, ...(EXTRA[t.id] || [])].map(q => [q.id, q])));
 const LESSON_SIZE = 8, DAILY_GOAL = 50;
 
 // ---------- Opslag (alleen op dit apparaat) ----------
@@ -134,7 +153,12 @@ function streak() {
 }
 const weakIds = () => Object.keys(S.q).filter(id => ALL[id] && S.q[id].w > 0 && (S.q[id].r || 0) < 2);
 const lessonsOf = t => { const n = Math.max(1, Math.round(t.qs.length / LESSON_SIZE)), size = Math.ceil(t.qs.length / n);
-  return Array.from({ length: n }, (_, i) => t.qs.slice(i * size, (i + 1) * size)).filter(l => l.length); };
+  const ls = Array.from({ length: n }, (_, i) => t.qs.slice(i * size, (i + 1) * size)).filter(l => l.length);
+  // de extra oefenvormen (koppelen, sorteren, ...) worden over de lessen verdeeld, tussen de gewone vragen
+  (EXTRA[t.id] || []).forEach((x, j) => { const l = ls[j % ls.length], k = l.filter(q => q.id[0] === 'x').length; l.splice(Math.min(l.length, 3 + k * 4), 0, x); });
+  return ls; };
+// theoriekaartjes van een thema, verdeeld over de lessen
+const cardsFor = (t, i) => { const c = THEORY[t.id] || [], L = lessonsOf(t).length; return c.slice(Math.floor(i * c.length / L), Math.floor((i + 1) * c.length / L)); };
 
 // ---------- Geluid ----------
 const Sound = (() => {
@@ -272,7 +296,7 @@ function home() {
     <div class="hello">${pion(64)}<div class="bubble">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
     ${THEMES.map(t => {
       const ls = lessonsOf(t), done = Math.min(S.done[t.id] || 0, ls.length);
-      return `<div class="theme"><div class="banner" style="background:${t.color}"><span class="ic">${t.icon}</span><div><h2>${esc(t.name)}</h2><small>${esc(t.ch || '')}</small></div><span class="pct">${done}/${ls.length}</span></div>
+      return `<div class="theme"><div class="banner" style="background:${t.color}"><span class="ic">${t.icon}</span><div><h2>${esc(t.name)}</h2><small>${esc(t.ch || '')}</small></div><span class="pct">${done}/${ls.length}</span>${(THEORY[t.id] || []).length ? `<button class="book" data-book="${t.id}" aria-label="Theorie van ${esc(t.name)}">📘</button>` : ''}</div>
         <div class="path">${ls.map((_, i) => `<button class="node ${i < done ? 'done' : i === done ? 'now' : 'locked'}" style="--c:${t.color};margin-left:${Math.round(Math.sin(i * 1.3) * 70)}px"
           data-theme="${t.id}" data-lesson="${i}" ${i > done ? 'disabled' : ''} aria-label="Les ${i + 1}">${i < done ? '✓' : i === done ? '★' : '🔒'}</button>`).join('')}</div></div>`;
     }).join('')}
@@ -286,14 +310,29 @@ function home() {
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   $app.querySelectorAll('.node:not(.locked)').forEach(b => b.onclick = () => {
     const t = THEMES.find(t => t.id === b.dataset.theme), i = +b.dataset.lesson;
-    Sound.tap(); startLesson(lessonsOf(t)[i], { theme: t, index: i, title: `${t.name} · les ${i + 1}` });
+    Sound.tap();
+    const go = () => startLesson(lessonsOf(t)[i], { theme: t, index: i, title: `${t.name} · les ${i + 1}` });
+    const cards = cardsFor(t, i);
+    if (cards.length) showTheory(t, cards, `${t.name} · les ${i + 1}`, go, 'Begin met oefenen'); else go();
   });
+  $app.querySelectorAll('[data-book]').forEach(b => b.onclick = () => { const t = THEMES.find(t => t.id === b.dataset.book); Sound.tap(); showTheory(t, THEORY[t.id], t.name, home, 'Terug'); });
   const w = document.getElementById('weak'); if (w) w.onclick = () => startLesson(shuffle(weakIds().map(id => ALL[id])).slice(0, 10), { title: 'Zwakke punten' });
   document.getElementById('mix').onclick = () => startLesson(shuffle(Object.values(ALL)).slice(0, 10), { title: 'Mix' });
   const f = document.getElementById('flags'); if (f) f.onclick = showFlags;
   scrollTo(0, 0);
 }
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// Theoriekaartjes: vóór een les, of alles van een thema via het boekje
+function showTheory(t, cards, title, next, label) {
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">✕</button><b style="flex:1">${esc(title)}</b></div>
+    <div class="qwrap"><div class="hello" style="padding:0 0 12px">${pion(56)}<div class="bubble">Eerst even lezen, dan oefenen.</div></div>
+      ${cards.map(c => `<div class="tcard" style="--c:${t.color}"><h4>${esc(c.h)}</h4><p>${esc(c.b)}</p></div>`).join('')}</div>
+    <div class="checkbar"><div><button class="btn green" id="tgo">${esc(label)}</button></div></div>`;
+  document.getElementById('quit').onclick = home;
+  document.getElementById('tgo').onclick = () => { Sound.tap(); next(); };
+  scrollTo(0, 0);
+}
 
 function showFlags() {
   const m = document.createElement('div'); m.className = 'modal';
@@ -330,7 +369,7 @@ function startLesson(qs, meta) {
     sheet.className = 'sheet show ' + (ok ? 'good' : 'bad');
     sheet.firstElementChild.innerHTML = `<button class="flag" id="flag">${S.flags.includes(q.id) ? 'gemarkeerd ✓' : 'klopt niet?'}</button>
       <h4>${ok ? ['Goed zo!', 'Top!', 'Lekker bezig!', 'Helemaal goed!'][Math.floor(Math.random() * 4)] : 'Helaas…'}</h4>
-      <p>${ok ? '' : `<b>Goed antwoord: ${esc(correctText)}</b><br>`}${esc(q.e)}</p>
+      <p>${ok || !correctText ? '' : `<b>Goed antwoord: ${esc(correctText)}</b><br>`}${esc(q.e)}</p>
       <button class="btn ${ok ? 'green' : 'red'}" id="go">Verder</button>`;
     document.getElementById('go').onclick = () => { Sound.tap(); next(); };
     document.getElementById('flag').onclick = e => { if (!S.flags.includes(q.id)) { S.flags.push(q.id); save(); } e.target.textContent = 'gemarkeerd ✓'; };
@@ -368,6 +407,74 @@ function startLesson(qs, meta) {
         inp.style.borderColor = ok ? 'var(--green)' : 'var(--red)'; result(q, ok, `${q.c} ${q.unit || ''}`); };
       btn.onclick = go; inp.onkeydown = e => { if (e.key === 'Enter') go(); };
       setTimeout(() => inp.focus(), 250);
+    } else if (q.t === 'gap') {
+      const opts = shuffle(q.a.map((a, i) => ({ a, i })));
+      const [pre, post] = q.s.split('___');
+      html += `<p class="sentence">${esc(pre)}<span class="blank" id="blank">&nbsp;</span>${esc(post)}</p><div class="chips">${opts.map(o => `<button class="opt chip" data-i="${o.i}">${esc(o.a)}</button>`).join('')}</div>`;
+      wrap.innerHTML = html;
+      wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        const ok = +b.dataset.i === q.c, blank = document.getElementById('blank');
+        blank.textContent = q.a[+b.dataset.i]; blank.classList.add(ok ? 'good' : 'bad'); b.classList.add(ok ? 'good' : 'bad', ok ? 'pop' : 'shake');
+        result(q, ok, q.a[q.c]);
+      });
+    } else if (q.t === 'pick') {
+      const opts = shuffle(q.signs.map((sg, i) => ({ sg, i })));
+      html += `<div class="picks">${opts.map(o => `<button class="opt pickb" data-i="${o.i}">${sign(o.sg)}</button>`).join('')}</div>`;
+      wrap.innerHTML = html;
+      wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        const ok = +b.dataset.i === q.c;
+        b.classList.add(ok ? 'good' : 'bad', ok ? 'pop' : 'shake');
+        if (!ok) wrap.querySelector(`.opt[data-i="${q.c}"]`).classList.add('good');
+        result(q, ok, '');
+      });
+    } else if (q.t === 'match') {
+      const cell = v => typeof v === 'string' ? esc(v) : sign(v.sign);
+      const right = shuffle(q.pairs.map((p, k) => ({ v: p[1], k })));
+      html += `<div class="match"><div>${q.pairs.map((p, k) => `<button class="opt" data-side="l" data-k="${k}">${cell(p[0])}</button>`).join('')}</div>
+        <div>${right.map(r => `<button class="opt" data-side="r" data-k="${r.k}">${cell(r.v)}</button>`).join('')}</div></div>`;
+      wrap.innerHTML = html;
+      let sel = null, errs = 0, left = q.pairs.length;
+      wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        if (b.classList.contains('good')) return;
+        if (!sel || sel.dataset.side === b.dataset.side) { if (sel) sel.classList.remove('picked'); sel = b; b.classList.add('picked'); Sound.tap(); return; }
+        const a = sel; sel = null; a.classList.remove('picked');
+        if (a.dataset.k === b.dataset.k) {
+          [a, b].forEach(x => x.classList.add('good', 'pop')); Sound.tap();
+          if (--left === 0) result(q, errs === 0, '');
+        } else { errs++; [a, b].forEach(x => { x.classList.remove('shake'); void x.offsetWidth; x.classList.add('shake'); }); Sound.bad(); }
+      });
+    } else if (q.t === 'bucket') {
+      const rows = shuffle(q.items.map((it, k) => ({ text: it[0], k })));
+      html += `<div class="bucket">${rows.map(r => `<div class="brow" data-k="${r.k}"><span>${esc(r.text)}</span><div class="bbtns">${q.labels.map((l, j) => `<button class="opt" data-j="${j}">${esc(l)}</button>`).join('')}</div></div>`).join('')}</div>
+        <div class="checkbar"><div><button class="btn green" id="check" disabled>Controleer</button></div></div>`;
+      wrap.innerHTML = html;
+      const btn = document.getElementById('check'), chosen = {};
+      wrap.querySelectorAll('.brow').forEach(row => row.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        row.querySelectorAll('.opt').forEach(o => o.classList.remove('picked')); b.classList.add('picked'); chosen[row.dataset.k] = +b.dataset.j; Sound.tap();
+        btn.disabled = Object.keys(chosen).length < q.items.length;
+      }));
+      btn.onclick = () => {
+        let ok = true;
+        wrap.querySelectorAll('.brow').forEach(row => { const good = q.items[+row.dataset.k][1], mine = chosen[row.dataset.k];
+          row.querySelectorAll('.opt').forEach(o => { o.classList.remove('picked'); if (+o.dataset.j === good) o.classList.add('good'); else if (+o.dataset.j === mine) o.classList.add('bad'); });
+          if (mine !== good) ok = false; });
+        btn.parentElement.parentElement.remove(); result(q, ok, '');
+      };
+    } else if (q.t === 'seq') {
+      const vs = shuffle(q.items.map((text, k) => ({ text, k })));
+      html += `<div class="opts">${vs.map(v => `<button class="opt" data-k="${v.k}">${esc(v.text)}</button>`).join('')}</div>`;
+      wrap.innerHTML = html;
+      const picked = [];
+      wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+        if (picked.includes(+b.dataset.k)) return;
+        picked.push(+b.dataset.k); Sound.tap();
+        b.classList.add('picked'); b.innerHTML = `<span class="n">${picked.length}</span>` + b.innerHTML;
+        if (picked.length === q.items.length) {
+          const ok = picked.every((k, i) => k === i);
+          wrap.querySelectorAll('.opt').forEach(o => { o.classList.remove('picked'); o.classList.add(ok ? 'good' : 'bad'); });
+          result(q, ok, q.items.map((t, i) => `${i + 1}. ${t}`).join(' '));
+        }
+      });
     } else if (q.t === 'order') {
       const vs = shuffle(q.scene.v);
       html += `<div class="opts">${vs.map(v => `<button class="opt" data-id="${v.id}">${esc(v.n)}</button>`).join('')}</div>`;
