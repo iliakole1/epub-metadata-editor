@@ -142,7 +142,39 @@ const LESSON_SIZE = 8, DAILY_GOAL = 50;
 const KEY = 'theorie-v1';
 let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], mute: false };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (_) {}
-const save = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
+const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
+const save = () => { saveLocal(); schedulePush(); };
+
+// ---------- Voortgang ook in de cloud (zelfde Firebase-project als het Sinterklaasboek, eigen vak 'theorie') ----------
+// Eén gebruiker, geen login. Werkt het niet (geen internet, regels nog niet gepubliceerd), dan blijft alles lokaal werken.
+const CLOUD = 'https://sinterklaas-d0541-default-rtdb.europe-west1.firebasedatabase.app/theorie/state.json';
+let cloud = 'bezig', pushTimer = 0;
+const cloudText = () => cloud === 'ok' ? '☁️ Voortgang wordt op al je apparaten bewaard.' : cloud === 'bezig' ? '☁️ Voortgang ophalen…' : '📱 Voortgang staat alleen op dit apparaat (cloud niet bereikbaar).';
+const setCloud = c => { cloud = c; const el = document.getElementById('cloud'); if (el) el.textContent = cloudText(); };
+// Samenvoegen zodat niets verloren gaat: per dag de hoogste XP, per thema de verste les, per vraag de laatste stand.
+function mergeState(R) {
+  if (!R || typeof R !== 'object') return;
+  for (const [d, v] of Object.entries(R.days || {})) S.days[d] = Math.max(S.days[d] || 0, +v || 0);
+  S.xp = Object.values(S.days).reduce((a, b) => a + b, 0);
+  for (const [t, v] of Object.entries(R.done || {})) S.done[t] = Math.max(S.done[t] || 0, +v || 0);
+  for (const [id, v] of Object.entries(R.q || {})) { const mine = S.q[id]; if (!mine || (v.t || 0) > (mine.t || 0)) S.q[id] = v; }
+  S.flags = [...new Set([...(S.flags || []), ...Object.values(R.flags || {})])];
+}
+const cloudBody = () => JSON.stringify({ xp: S.xp, days: S.days, done: S.done, q: S.q, flags: S.flags });
+async function push() {
+  try { const r = await fetch(CLOUD, { method: 'PUT', body: cloudBody() }); setCloud(r.ok ? 'ok' : 'uit'); } catch (_) { setCloud('uit'); }
+}
+function schedulePush() { clearTimeout(pushTimer); pushTimer = setTimeout(push, 1200); }
+async function pull() {
+  try {
+    const r = await fetch(CLOUD); if (!r.ok) throw 0;
+    const R = await r.json(), before = cloudBody();
+    mergeState(R); saveLocal(); setCloud('ok');
+    if (cloudBody() !== JSON.stringify({ xp: R && R.xp, days: R && R.days, done: R && R.done, q: R && R.q, flags: R && R.flags })) push();
+    if (cloudBody() !== before && document.querySelector('.top')) home();      // startscherm bijwerken met wat er binnenkwam
+  } catch (_) { setCloud('uit'); }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') pull(); else if (pushTimer) { clearTimeout(pushTimer); pushTimer = 0; push(); } });
 const dayKey = (d = new Date()) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const todayXp = () => S.days[dayKey()] || 0;
 function streak() {
@@ -306,6 +338,7 @@ function home() {
     </div>
     <div class="foot">Zelfgeschreven oefenvragen, geen officiële CBR-vragen. Gebruik dit naast je theorieboek.<br>
       Het proefexamen volgt nog.<br>
+      <span id="cloud">${cloudText()}</span><br>
       ${S.flags.length ? `<button id="flags">Gemarkeerde vragen (${S.flags.length})</button>` : ''}</div>`;
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   $app.querySelectorAll('.node:not(.locked)').forEach(b => b.onclick = () => {
@@ -362,7 +395,7 @@ function startLesson(qs, meta) {
 
   const result = (q, ok, correctText) => {
     wrap.classList.add('dis');
-    const st = S.q[q.id] || (S.q[q.id] = { r: 0, w: 0 });
+    const st = S.q[q.id] || (S.q[q.id] = { r: 0, w: 0 }); st.t = Date.now();
     if (ok) { st.r++; right++; combo++; if (!missed.has(q.id)) { firstTry++; xp += 10; } else xp += 5; Sound.good(); }
     else { st.r = 0; st.w++; combo = 0; missed.add(q.id); queue.push(q); Sound.bad(); }
     save();
@@ -525,7 +558,7 @@ if (location.hash === '#overzicht') {
   $app.style.maxWidth = 'none';
   $app.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px">' + Object.values(ALL).filter(q => q.sign || q.scene)
     .map(q => `<div style="width:${q.scene ? 200 : 120}px;font:600 10px/1.2 sans-serif;text-align:center">${picture(q)}${q.id} ${q.sign ? q.sign[0] : ''}</div>`).join('') + '</div>';
-} else home();
+} else { home(); pull(); }
 })();
 </script>
 </body>

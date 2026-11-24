@@ -1,7 +1,9 @@
 # 🚗 Theorie-trainer (rijbewijs B)
 
 Een Duolingo-achtige oefen-app voor het Nederlandse theorie-examen auto (B). Alles in het Nederlands,
-gemaakt voor de telefoon; de voortgang wordt alleen op het apparaat zelf bewaard (`localStorage`).
+gemaakt voor de telefoon. De voortgang staat op het apparaat (`localStorage`) en wordt daarnaast bewaard in
+de Firebase-database van het Sinterklaasboek, in een eigen vak `theorie` (één gebruiker, geen login; de
+regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar, dan werkt alles lokaal door.
 
 - **Leerpad** per thema met korte lessen (± 8 vragen), XP, dagdoel, reeks (dagen op rij) en combo's
 - **Theoriekaartjes** vóór elke les, en per thema na te lezen via het 📘-knopje (`questions3.js`)
