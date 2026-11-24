@@ -46,11 +46,11 @@
   .banner .ic { font-size: 28px; } .banner h2 { margin: 0; font-size: 20px; font-weight: 900; } .banner small { opacity: .85; font-weight: 800; }
   .banner .pct { margin-left: auto; font-weight: 900; }
   .path { display: flex; flex-direction: column; align-items: center; gap: 26px; padding: 44px 0 10px; }
-  .node { width: 70px; height: 70px; flex: none; padding: 0; line-height: 1; border-radius: 50%; border: 0; cursor: pointer; font-size: 26px; font-weight: 900; color: #fff;
-    background: var(--c); box-shadow: 0 6px 0 color-mix(in srgb, var(--c) 72%, #000); position: relative; transition: transform .06s, box-shadow .06s; }
-  .node:active { transform: translateY(5px); box-shadow: 0 1px 0 color-mix(in srgb, var(--c) 72%, #000); }
-  .node.done { background: var(--gold); box-shadow: 0 6px 0 #d99a00; }
-  .node.locked { background: #dee2e6; color: #adb5bd; box-shadow: 0 6px 0 #ced4da; cursor: default; }
+  .node { width: 72px; height: 66px; flex: none; padding: 0; border-radius: 50%; border: 0; cursor: pointer; font-size: 26px; font-weight: 900; color: #fff;
+    background: var(--c); box-shadow: 0 7px 0 rgba(0,0,0,.22), inset 0 -3px 0 rgba(0,0,0,.08); position: relative; transition: transform .06s, box-shadow .06s; }
+  .node:active { transform: translateY(6px); box-shadow: 0 1px 0 rgba(0,0,0,.22); }
+  .node.done { background: var(--gold); }
+  .node.locked { background: #dee2e6; color: #adb5bd; box-shadow: 0 7px 0 #ced4da; cursor: default; }
   .node.now::after { content: "START"; position: absolute; left: 50%; top: -30px; transform: translateX(-50%); background: #fff; color: var(--c);
     border: 2px solid var(--line); border-radius: 10px; padding: 2px 10px; font-size: 13px; animation: bob 1.2s ease-in-out infinite; white-space: nowrap; }
   @keyframes bob { 50% { transform: translate(-50%, -5px); } }
@@ -93,8 +93,8 @@
   .checkbar { position: fixed; left: 0; right: 0; bottom: 0; padding: 12px 16px calc(16px + env(safe-area-inset-bottom)); background: #fff; border-top: 2px solid var(--line); }
   .checkbar > div { max-width: 488px; margin: 0 auto; }
 
-  .done { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
-  .done h2 { font-size: 28px; font-weight: 900; margin: 0; color: var(--gold); }
+  .finish { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 24px; gap: 14px; }
+  .finish h2 { font-size: 28px; font-weight: 900; margin: 0; color: var(--gold); }
   .cards { display: flex; gap: 10px; }
   .card { border: 2px solid var(--line); border-radius: 14px; padding: 10px 14px; min-width: 96px; }
   .card b { display: block; font-size: 22px; font-weight: 900; } .card span { font-size: 12px; color: var(--soft); }
@@ -380,7 +380,7 @@ function startLesson(qs, meta) {
     S.xp += xp; S.days[dayKey()] = todayXp() + xp;
     if (meta.theme) S.done[meta.theme.id] = Math.max(S.done[meta.theme.id] || 0, meta.index + 1);
     save(); Sound.win(); confetti();
-    $app.innerHTML = `<div class="done">${pion(120)}
+    $app.innerHTML = `<div class="finish">${pion(120)}
       <h2>${perfect ? 'Foutloos! 🌟' : 'Les gehaald!'}</h2>
       <div style="color:var(--soft)">${esc(meta.title)}</div>
       <div class="cards"><div class="card" style="color:var(--gold)"><b>+${xp}</b><span>XP</span></div>
