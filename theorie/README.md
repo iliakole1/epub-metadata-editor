@@ -9,8 +9,8 @@ gemaakt voor de telefoon; de voortgang wordt alleen op het apparaat zelf bewaard
 - **Plaatjes**: verkeersborden en kruispunten worden in de app zelf getekend (SVG), geen foto's
 - **"Klopt niet?"** markeert een vraag; de lijst is op het startscherm te kopiëren
 
-De thema-indeling volgt het ANWB-theorieboek personenauto. Nu aanwezig: voorrang, verkeersborden,
-snelheden. De vragen staan in `questions.js` en zijn zelf geschreven oefenvragen, geen officiële
+De thema-indeling volgt het ANWB-theorieboek personenauto: 18 thema's, 42 lessen, 305 vragen. De vragen
+staan in `questions.js` en `questions2.js` en zijn zelf geschreven oefenvragen, geen officiële
 CBR-vragen; er kunnen fouten in zitten. `index.html#overzicht` toont alle tekeningen op één pagina.
 
-Nog te doen: de overige thema's en een proefexamen in CBR-opzet.
+Nog te doen: een proefexamen in CBR-opzet.
