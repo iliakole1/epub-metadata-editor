@@ -109,7 +109,8 @@
 </head>
 <body>
 <div id="app"></div>
-<script src="questions.js?v=1"></script>
+<script src="questions.js?v=2"></script>
+<script src="questions2.js?v=2"></script>
 <script>
 (() => {
 const $app = document.getElementById('app');
@@ -173,7 +174,18 @@ function sign([code, txt = '']) {
   const carBack = (x, y, c) => `<g transform="translate(${x},${y})" fill="${c}"><path d="M-9-8h18l4 8v9h-26v-9z"/><rect x="-12" y="8" width="6" height="5" rx="1"/><rect x="6" y="8" width="6" height="5" rx="1"/></g>`;
   const stripes = `<g stroke="${K}" stroke-width="2.2">${[-12, -6, 0, 6, 12].map(d => `<line x1="${22 + d}" y1="${78 + d}" x2="${78 + d}" y2="${22 + d}"/>`).join('')}</g>`;
   const round3 = (cx, cy, r, c, w) => [0, 120, 240].map(a => `<g transform="rotate(${a} ${cx} ${cy})"><path d="M${cx + r * .82} ${cy - r * .57} A${r} ${r} 0 0 0 ${cx - r * .5} ${cy - r * .87}" fill="none" stroke="${c}" stroke-width="${w}"/><polygon points="${cx - r * .5 - w * 1.5},${cy - r * .87 + w * .3} ${cx - r * .5 + w * .6},${cy - r * .87 - w * 1.3} ${cx - r * .5 + w * .9},${cy - r * .87 + w * 1.5}" fill="${c}"/></g>`).join('');
+  const lamp = (on) => { const off = '#3a3a3a'; return `<rect x="30" y="4" width="40" height="92" rx="9" fill="#1c1c1c"/>`
+    + `<circle cx="50" cy="22" r="11" fill="${on === 'rood' ? '#f03e3e' : off}"/><circle cx="50" cy="50" r="11" fill="${on === 'geel' || on === 'knipper' ? '#fcc419' : off}"/>`
+    + (on === 'pijl' ? `<circle cx="50" cy="78" r="11" fill="#111"/>${arrow(58, 78, 41, 78, '#40c057', 5)}` : `<circle cx="50" cy="78" r="11" fill="${on === 'groen' ? '#40c057' : off}"/>`)
+    + (on === 'knipper' ? [[-1, -1], [1, -1], [-1, 1], [1, 1], [-1.4, 0], [1.4, 0]].map(([x, y]) => `<line x1="${50 + x * 17}" y1="${50 + y * 13}" x2="${50 + x * 26}" y2="${50 + y * 20}" stroke="#fcc419" stroke-width="3.5" stroke-linecap="round"/>`).join('') : ''); };
+  const road = inner => `<rect x="6" y="2" width="88" height="96" rx="6" fill="#5b6168"/>${inner}<g transform="translate(70,74)"><rect x="-8" y="-13" width="16" height="26" rx="4" fill="#1c7ed6"/><rect x="-6" y="-8" width="12" height="6" rx="2" fill="#cfe8ff"/></g>`;
+  const ln = (x, dash, c = '#fff') => `<line x1="${x}" y1="4" x2="${x}" y2="96" stroke="${c}" stroke-width="3.5" ${dash ? 'stroke-dasharray="13 10"' : ''}/>`;
   switch (code) {
+    case 'LICHT': return wrap(lamp(txt));
+    case 'KRUIS': return wrap(`<rect x="8" y="8" width="84" height="84" rx="8" fill="#1c1c1c"/><path d="M28 28L72 72M72 28L28 72" stroke="#f03e3e" stroke-width="11" stroke-linecap="round"/>`);
+    case 'SCHUIN': return wrap(`<rect x="8" y="8" width="84" height="84" rx="8" fill="#1c1c1c"/>${arrow(30, 30, 72, 72, '#fff', 9)}`);
+    case 'LIJN': return wrap(road(txt === 'door' ? ln(50) : txt === 'onder' ? ln(50, 1) : txt === 'jijonder' ? ln(46) + ln(54, 1) : txt === 'jijdoor' ? ln(46, 1) + ln(54)
+      : `<rect x="45" y="4" width="10" height="92" fill="#2f9e44"/>` + ln(44) + ln(56)));
     case 'B1': case 'B2': return wrap(`<polygon points="50,3 97,50 50,97 3,50" fill="#fff" stroke="${K}" stroke-width="1.5"/><polygon points="50,17 83,50 50,83 17,50" fill="#f7c600"/>${code === 'B2' ? `<line x1="20" y1="80" x2="80" y2="20" stroke="${K}" stroke-width="8"/>` : ''}`);
     case 'B3': return wrap(tri(arrow(50, 80, 50, 34, K, 9) + `<line x1="30" y1="64" x2="70" y2="64" stroke="${K}" stroke-width="4"/>`));
     case 'B6': return wrap(`<polygon points="5,12 95,12 50,92" fill="#fff" stroke="${R}" stroke-width="9" stroke-linejoin="round"/>`);
@@ -269,7 +281,7 @@ function home() {
       <button class="btn ghost" id="mix">🎲 Mix: 10 willekeurige vragen</button>
     </div>
     <div class="foot">Zelfgeschreven oefenvragen, geen officiële CBR-vragen. Gebruik dit naast je theorieboek.<br>
-      Meer thema's en het proefexamen volgen.<br>
+      Het proefexamen volgt nog.<br>
       ${S.flags.length ? `<button id="flags">Gemarkeerde vragen (${S.flags.length})</button>` : ''}</div>`;
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   $app.querySelectorAll('.node:not(.locked)').forEach(b => b.onclick = () => {
@@ -328,7 +340,7 @@ function startLesson(qs, meta) {
     wrap.classList.remove('dis'); wrap.dataset.qid = q.id;
     let html = `<h3>${esc(q.q)}</h3>${picture(q)}`;
     if (q.t === 'mc') {
-      const opts = shuffle(q.a.map((a, i) => ({ a, i })));
+      const opts = q.fixed ? q.a.map((a, i) => ({ a, i })) : shuffle(q.a.map((a, i) => ({ a, i })));
       html += `<div class="opts">${opts.map(o => `<button class="opt" data-i="${o.i}">${esc(o.a)}</button>`).join('')}</div>`;
       wrap.innerHTML = html;
       wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
