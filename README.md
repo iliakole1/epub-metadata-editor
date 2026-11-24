@@ -113,3 +113,11 @@ The camera requires HTTPS (or `localhost`), e.g. GitHub Pages at `…/slitscan/`
 keeps their own list (with optional link and price), and ticks off gifts on other people's lists.
 Ticks are visible to everyone except the person whose list it is. It uses a free Firebase
 Realtime Database. See [`sinterklaas/README.md`](sinterklaas/README.md) for setup.
+
+---
+
+## 🚗 Theorie-trainer (bonus app)
+
+`theorie/` is a Duolingo-style practice app (in Dutch) for the Dutch car theory exam: short lessons
+per theme, XP, daily goal and streak, drawn traffic signs and junctions, explanations after every
+answer. Progress is stored on the device only. See [`theorie/README.md`](theorie/README.md).
