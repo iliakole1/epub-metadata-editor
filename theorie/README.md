@@ -6,6 +6,8 @@ de Firebase-database van het Sinterklaasboek, in een eigen vak `theorie` (één 
 regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar, dan werkt alles lokaal door.
 
 - **Leerpad** per thema met korte lessen (± 8 vragen), XP, dagdoel, reeks (dagen op rij) en combo's
+- **Eerst uitleg, dan vragen**: `lessons.js` koppelt elke vraag aan een theoriekaartje; een les toont de
+  kaartjes en vraagt daarna alleen over die stof
 - **Theoriekaartjes** vóór elke les, en per thema na te lezen via het 📘-knopje (`questions3.js`)
 - **Vraagtypen**: meerkeuze, ja/nee, getal invullen, volgorde bij een kruispunt, koppelen, sorteren,
   zin afmaken, het goede bord aantikken en stappen op volgorde zetten
