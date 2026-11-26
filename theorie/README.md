@@ -15,6 +15,9 @@ regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar,
   wegrijden, binnenglijdende vragen, combo-meldingen; uit bij "verminder beweging"
 - **Winkel**: munten (verdiende XP min uitgaven) voor boosts (dubbele XP, hint, reeksbevriezing) en
   skins voor de pylon; uitgeven verlaagt je XP of reeks niet
+- **Theorieboek** (`book.js`): alle theorie om na te lezen, in vijf categorieën; per thema hoofdstukken met
+  plaatjes en een voorbeeld, een bordenoverzicht, uitgewerkte voorbeelden en een lijst getallen en feiten
+  (de laatste drie worden uit de vragen afgeleid)
 - **Uitleg** na elk antwoord; foute vragen komen in dezelfde les terug en belanden bij "zwakke punten"
 - **Plaatjes**: verkeersborden en kruispunten worden in de app zelf getekend (SVG), geen foto's
 - **"Klopt niet?"** markeert een vraag; de lijst is op het startscherm te kopiëren

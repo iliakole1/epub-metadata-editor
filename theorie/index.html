@@ -75,11 +75,29 @@
   @keyframes wiggle { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-9deg); } 84% { transform: rotate(8deg); } 92% { transform: rotate(-4deg); } }
   /* mascotte */
   .pion { overflow: visible; }
-  .pion .eyes { transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
-  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
-  .hello .pion { animation: hop 2.6s ease-in-out infinite; }
-  .finish .pion { animation: jump .7s cubic-bezier(.3, 1.6, .5, 1) 2; }
-  @keyframes jump { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-34px) rotate(-8deg); } 70% { transform: translateY(0) rotate(4deg); } }
+  .pion * { transform-box: fill-box; }
+  .pion .body { transform-origin: 50% 100%; animation: breathe 3.2s ease-in-out infinite; }
+  @keyframes breathe { 50% { transform: scale(1.025, .972); } }
+  .pion .eyes { transform-origin: center; animation: blink 4.6s infinite; }
+  @keyframes blink { 0%, 44%, 48%, 92%, 100% { transform: scaleY(1); } 46%, 94%, 96% { transform: scaleY(.08); } }
+  .pion .look { transform: translate(var(--lx, 0px), var(--ly, 0px)); transition: transform .25s ease-out; animation: glance 9s ease-in-out infinite; }
+  @keyframes glance { 0%, 20%, 34%, 60%, 74%, 100% { translate: 0 0; } 24%, 30% { translate: -1.6px .3px; } 64%, 70% { translate: 1.6px -.4px; } }
+  .pion .arm { transform-origin: 20% 100%; } .pion .armL { transform-origin: 90% 0%; }
+  .pion .arm.wave { transform-origin: 0% 100%; animation: wave 5.5s ease-in-out infinite; }
+  @keyframes wave { 0%, 62%, 100% { transform: rotate(18deg); } 68%, 80%, 92% { transform: rotate(-22deg); } 74%, 86% { transform: rotate(8deg); } }
+  .pion .arm.up { animation: cheer .45s ease-in-out infinite alternate; } .pion .armR.up { transform-origin: 0% 100%; } .pion .armL.up { transform-origin: 100% 100%; }
+  @keyframes cheer { to { transform: rotate(14deg); } } .pion .armL.up { animation-name: cheerL; } @keyframes cheerL { to { transform: rotate(-14deg); } }
+  .pion.m-sad .body { animation: droop 2.6s ease-in-out infinite; } @keyframes droop { 50% { transform: scale(1.02, .95) rotate(-2deg); } }
+  .pion .tear { animation: tear 2.2s ease-in infinite; } @keyframes tear { 0% { opacity: 0; transform: translateY(-3px); } 20% { opacity: 1; } 100% { opacity: 0; transform: translateY(16px); } }
+  .pion.m-think .look { animation: none; transform: translate(1.4px, -1.6px); }
+  .pion .shadow { transform-origin: center; }
+  .hello .pion, .deco.here .pion { animation: hopq 2.8s ease-in-out infinite; }
+  .deco.here { animation: none; }
+  @keyframes hopq { 0%, 55%, 100% { transform: translateY(0); } 62% { transform: translateY(2px) scale(1.06, .92); } 74% { transform: translateY(-11px) scale(.96, 1.06); } 86% { transform: translateY(0) scale(1.05, .94); } 92% { transform: scale(1); } }
+  #pet { cursor: pointer; display: inline-block; } #pet.poke .pion { animation: poke .6s cubic-bezier(.3, 1.5, .5, 1); }
+  @keyframes poke { 0% { transform: scale(1); } 25% { transform: scale(1.18, .8); } 55% { transform: translateY(-20px) scale(.9, 1.14) rotate(-10deg); } 80% { transform: scale(1.08, .92) rotate(6deg); } 100% { transform: none; } }
+  .finish .pion { animation: jump .8s cubic-bezier(.3, 1.4, .5, 1) 3; transform-origin: 50% 100%; }
+  @keyframes jump { 0%, 100% { transform: none; } 15% { transform: scale(1.12, .84); } 45% { transform: translateY(-38px) scale(.94, 1.1) rotate(-8deg); } 75% { transform: translateY(0) scale(1.08, .9) rotate(4deg); } }
   .finish .card { animation: rise .4s both; } .finish .card:nth-child(2) { animation-delay: .12s; } .finish .card:nth-child(3) { animation-delay: .24s; }
   .sheet h4 .pion { vertical-align: -8px; }
   /* vragen komen binnenglijden */
@@ -103,10 +121,41 @@
   .sbuy { width: auto; flex: none; padding: 9px 12px; font-size: 14px; text-transform: none; white-space: nowrap; }
   .skins { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .skin { border: 2px solid var(--line); border-radius: 16px; padding: 22px 10px 12px; display: grid; justify-items: center; gap: 8px; text-align: center; }
-  .skin.on { border-color: var(--green); background: #ebfbee; } .skin .pion { animation: none; }
+  .skin.on { border-color: var(--green); background: #ebfbee; }
   .wearing { color: var(--green-d); font-size: 14px; padding: 9px 0; }
   .hintbtn { margin-top: 14px; border: 2px dashed #ffd43b; background: #fff9db; color: #a56a00; border-radius: 14px; padding: 9px 14px; cursor: pointer; font: inherit; font-size: 15px; }
   .opt.gone { opacity: .3; text-decoration: line-through; pointer-events: none; }
+  /* theorieboek */
+  .extra.duo { grid-template-columns: 1fr 1fr; padding-top: 14px; } .extra.duo .btn { padding: 12px 6px; font-size: 14px; }
+  .bookbtn { background: #0c8599; box-shadow: 0 4px 0 #095c69; }
+  h3.cat { font-size: 16px; color: var(--soft); text-transform: uppercase; letter-spacing: .05em; margin: 20px 0 10px; }
+  .shelf { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .tile { text-align: left; border: 2px solid var(--line); border-top: 6px solid var(--c); background: #fff; border-radius: 16px; padding: 12px; cursor: pointer; display: grid; gap: 3px;
+    box-shadow: 0 3px 0 var(--line); font: inherit; opacity: .78; } .tile.cov { opacity: 1; }
+  .tile:active { transform: translateY(3px); box-shadow: none; }
+  .tic { width: 42px; height: 42px; display: grid; place-items: center; font-size: 22px; border-radius: 50%; background: color-mix(in srgb, var(--c) 16%, #fff); }
+  .tile small { font-weight: 600; color: var(--soft); font-size: 12.5px; } .tile em { font-style: normal; font-size: 12.5px; color: var(--soft); } .tile.cov em { color: var(--green-d); }
+  .bhero { display: flex; align-items: center; gap: 12px; padding: 16px; border-radius: 18px; color: #fff; background: linear-gradient(160deg, color-mix(in srgb, var(--c) 80%, #fff), var(--c)); }
+  .bhero .tic { background: rgba(255,255,255,.25); flex: none; } .bhero h2 { margin: 0; font-size: 22px; font-weight: 900; } .bhero small { opacity: .9; }
+  .brow2 { width: 100%; display: flex; align-items: center; gap: 12px; text-align: left; border: 2px solid var(--line); background: #fff; border-radius: 14px; padding: 10px 12px; margin-bottom: 8px; cursor: pointer; font: inherit; }
+  .brow2 > span:nth-child(2) { flex: 1; min-width: 0; } .brow2 b { display: block; } .brow2 small { display: block; font-weight: 600; color: var(--soft); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .brow2 i { font-style: normal; font-size: 22px; color: #adb5bd; }
+  .thumb { width: 48px; height: 48px; flex: none; display: grid; place-items: center; font-size: 24px; background: #f1f3f5; border-radius: 12px; overflow: hidden; }
+  .thumb svg.sign { width: 38px; height: 38px; } .thumb svg.scene { width: 48px; height: 48px; border: 0; border-radius: 0; } .thumb .num { font-weight: 900; color: var(--soft); }
+  .btitle { font-size: 26px; font-weight: 900; margin: 6px 0 14px; }
+  .bimgs { display: flex; flex-wrap: wrap; justify-content: center; gap: 14px; background: #f8f9fa; border-radius: 16px; padding: 16px; margin-bottom: 14px; }
+  .bimgs svg.sign { width: 84px; height: 84px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.2)); } .bimgs svg.scene { width: min(100%, 250px); border-radius: 14px; }
+  .btext { font-weight: 600; font-size: 18px; line-height: 1.55; margin: 0 0 14px; }
+  .bex { border-left: 6px solid #fab005; background: #fff9db; border-radius: 12px; padding: 12px 14px; margin-bottom: 14px; } .bex b { color: #a56a00; } .bex p { margin: 4px 0 0; font-weight: 600; line-height: 1.5; }
+  .bfacts { border: 2px solid var(--line); border-radius: 14px; overflow: hidden; margin-bottom: 14px; } .bfacts > b { display: block; padding: 10px 14px 0; color: var(--blue-d); }
+  .bfacts > div { display: flex; gap: 12px; align-items: center; padding: 10px 14px; border-top: 1px solid var(--line); } .bfacts > div:first-of-type { border-top: 0; }
+  .bfacts span { flex: 1; font-weight: 600; font-size: 15px; } .bfacts strong { flex: none; max-width: 46%; text-align: right; color: var(--blue-d); }
+  .bsign { display: flex; gap: 14px; align-items: center; border: 2px solid var(--line); border-radius: 14px; padding: 12px; margin-bottom: 10px; }
+  .bsign svg.sign { width: 66px; height: 66px; flex: none; } .bsign p { margin: 0; font-weight: 600; font-size: 15px; line-height: 1.4; }
+  .bcase { border: 2px solid var(--line); border-radius: 16px; padding: 14px; margin-bottom: 12px; display: grid; gap: 6px; }
+  .bcase .pic { margin: 0 0 6px; } .bcase .pic svg.sign { width: 90px; height: 90px; } .bcase .pic svg.scene { width: min(100%, 230px); }
+  .bcase .ans { color: var(--green-d); } .bcase .ans::before { content: "✓ "; } .bcase p { margin: 0; font-weight: 600; font-size: 15px; color: var(--soft); line-height: 1.4; }
+  .bnav { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   /* proefexamen */
   .exambtn { background: #343a40; box-shadow: 0 4px 0 #111; } .exambtn small { display: block; font-size: 12px; opacity: .75; text-transform: none; }
   .exres { font-size: 30px; font-weight: 900; margin: 6px 0 4px; } .exres.ok { color: var(--green-d); } .exres.no { color: var(--red-d); }
@@ -210,6 +259,7 @@
 <script src="questions2.js?v=2"></script>
 <script src="questions4.js?v=1"></script>
 <script src="questions3.js?v=1"></script>
+<script src="book.js?v=1"></script>
 <script>
 (() => {
 const $app = document.getElementById('app');
@@ -330,17 +380,39 @@ const ACC = {
   feest: '<path d="M50-16L62 13H38z" fill="#7048e8"/><path d="M45-4l12 5M42 5l18 6" stroke="#ffd43b" stroke-width="3"/><circle cx="50" cy="-17" r="4.5" fill="#ffd43b"/>',
   bril: '<path d="M30 37h40v5q0 8-8 8h-4q-6 0-7-7h-2q-1 7-7 7h-4q-8 0-8-8z" fill="#212529"/><path d="M36 40l5 0M56 40l5 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>',
   pet: '<path d="M34 13q16-16 32 0v3H34z" fill="#1c3f7a"/><path d="M30 15h44q2 4-4 5H34q-6-1-4-5z" fill="#102a54"/><circle cx="50" cy="8" r="3.2" fill="#ffd43b"/>',
-  muts: '<path d="M36 14Q44-14 70-6Q58-2 64 14z" fill="#e03131"/><rect x="33" y="10" width="34" height="8" rx="4" fill="#fff"/><circle cx="71" cy="-6" r="5.5" fill="#fff"/>',
+  muts: '<path d="M36 14Q44-14 70-6Q58-2 64 14z" fill="#e03131"/><rect x="32" y="9" width="36" height="9" rx="4.5" fill="#fff" stroke="#ced4da" stroke-width="1.2"/><circle cx="71" cy="-6" r="5.5" fill="#fff" stroke="#ced4da" stroke-width="1.2"/>',
   band: '<path d="M34 26h32l2 8H32z" fill="#c92a2a"/><path d="M66 28l14-5-3 8zM66 31l12 5-8 3z" fill="#c92a2a"/>',
   kroon: '<path d="M35 13L33-7l9 9 8-13 8 13 9-9-2 20z" fill="#ffd43b" stroke="#e67700" stroke-width="1.5" stroke-linejoin="round"/><circle cx="50" cy="6" r="2.6" fill="#e03131"/><circle cx="40" cy="8" r="1.8" fill="#1c7ed6"/><circle cx="60" cy="8" r="1.8" fill="#1c7ed6"/>',
 };
-const pion = (size = 64, mood = 'happy', skinId = S.skin) => { const k = SKINS.find(x => x.id === skinId) || SKINS[0], eye = k.acc === 'bril' ? '' : `<g class="eyes"><circle cx="42" cy="42" r="5" fill="#343a40"/><circle cx="58" cy="42" r="5" fill="#343a40"/><circle cx="43.5" cy="40.5" r="1.6" fill="#fff"/><circle cx="59.5" cy="40.5" r="1.6" fill="#fff"/></g>`;
-  return `<svg class="pion" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
+// Pion: meer detail (schaduw, glans, armpjes, wangen, wenkbrauwen) en stemmingen: happy, sad, excited, think.
+const pion = (size = 64, mood = 'happy', skinId = S.skin) => { const k = SKINS.find(x => x.id === skinId) || SKINS[0], K = '#343a40';
+  const eye = x => `<g transform="translate(${x} 42)"><circle r="5.4" fill="${K}"/><circle cx="1.7" cy="-1.8" r="1.9" fill="#fff"/><circle cx="-1.6" cy="1.9" r=".9" fill="#fff" opacity=".8"/></g>`;
+  const eyes = k.acc === 'bril' ? '' : `<g class="look"><g class="eyes">${eye(42)}${eye(58)}</g></g>`;
+  const brows = k.acc === 'bril' || k.acc === 'band' ? '' : mood === 'sad' ? `<path d="M36 33l9-3M64 33l-9-3" stroke="${K}" stroke-width="2.4" stroke-linecap="round"/>`
+    : mood === 'excited' ? `<path d="M37 30q5-4 9-1M63 30q-5-4-9-1" fill="none" stroke="${K}" stroke-width="2.2" stroke-linecap="round"/>`
+    : mood === 'think' ? `<path d="M37 32l9-1M54 28q5-3 9 1" fill="none" stroke="${K}" stroke-width="2.2" stroke-linecap="round"/>` : '';
+  const mouth = mood === 'sad' ? `<path d="M43 58q7-6 14 0" fill="none" stroke="${K}" stroke-width="3" stroke-linecap="round"/>`
+    : mood === 'excited' ? `<path d="M40 52q10 15 20 0z" fill="${K}"/><path d="M45 58q5-3 10 0q-5 5-10 0z" fill="#ff8787"/>`
+    : mood === 'think' ? `<ellipse cx="53" cy="56" rx="3.2" ry="3.6" fill="${K}"/>`
+    : `<path d="M42 53q8 10 16 0z" fill="${K}"/><path d="M46 57.5q4-2.4 8 0q-4 3.4-8 0z" fill="#ff8787"/>`;
+  const arm = (cls, d, hx, hy) => `<g class="arm ${cls}"><path d="${d}" fill="none" stroke="${k.base}" stroke-width="5" stroke-linecap="round"/><circle cx="${hx}" cy="${hy}" r="4" fill="${k.base}"/></g>`;
+  const up = mood === 'excited';
+  return `<svg class="pion m-${mood}" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
   ${k.id === 'regenboog' ? '<defs><linearGradient id="rb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fa5252"/><stop offset=".25" stop-color="#fab005"/><stop offset=".5" stop-color="#40c057"/><stop offset=".75" stop-color="#228be6"/><stop offset="1" stop-color="#7048e8"/></linearGradient></defs>' : ''}
-  <rect x="10" y="80" width="80" height="12" rx="5" fill="${k.base}"/>
-  <path d="M38 12h24l18 68H20z" fill="${k.body}"/><path d="M33 34h34l5 16H28z" fill="#fff"/><path d="M26 60h48l3 10H23z" fill="#fff"/>
-  ${eye}${ACC[k.acc] || ''}
-  ${mood === 'sad' ? '<path d="M43 58q7-6 14 0" fill="none" stroke="#343a40" stroke-width="3" stroke-linecap="round"/>' : '<path d="M42 54q8 9 16 0" fill="#343a40"/>'}
+  <ellipse class="shadow" cx="50" cy="94" rx="40" ry="4" fill="#000" opacity=".13"/>
+  <g class="body">
+    ${up ? arm('armL up', 'M27 54L15 40', 15, 40) + arm('armR up', 'M73 54L85 40', 85, 40) : mood === 'sad' ? arm('armL', 'M26 58L19 70', 19, 70) + arm('armR', 'M74 58L81 70', 81, 70)
+      : mood === 'think' ? arm('armL', 'M26 58L18 68', 18, 68) + arm('armR', 'M72 56Q84 64 62 60', 61, 60) : arm('armL', 'M26 58L17 66', 17, 66) + arm('armR wave', 'M73 54L86 44', 86, 44)}
+    <rect x="10" y="80" width="80" height="12" rx="5" fill="${k.base}"/><rect x="10" y="87" width="80" height="5" rx="2.5" fill="#000" opacity=".14"/>
+    <path d="M38 12h24l18 68H20z" fill="${k.body}"/>
+    <path d="M33 34h34l5 16H28z" fill="#fff"/><path d="M26 60h48l3 10H23z" fill="#fff"/>
+    <path d="M55 12h7l18 68H66z" fill="#000" opacity=".09"/><path d="M38 12h6L31 80H20z" fill="#fff" opacity=".2"/>
+    <ellipse cx="50" cy="12" rx="12" ry="2.6" fill="${k.base}"/>
+    <path class="shine" d="M30 34h6l-5 16h-6zM23 60h6l-3 10h-6z" fill="#fff" opacity=".0"/>
+    <circle cx="34.5" cy="50.5" r="3.6" fill="#ff8787" opacity=".55"/><circle cx="65.5" cy="50.5" r="3.6" fill="#ff8787" opacity=".55"/>
+    ${brows}${eyes}${mouth}${ACC[k.acc] || ''}
+    ${mood === 'sad' ? '<path class="tear" d="M65 47q3 5 0 7q-3-2 0-7z" fill="#74c0fc"/>' : ''}
+  </g>
 </svg>`; };
 
 // ---------- Verkeersborden (zelf getekend, vereenvoudigd) ----------
@@ -478,8 +550,8 @@ function home() {
       <button class="stat xp coinbtn" id="shop" aria-label="Winkel, ${coins()} munten">🪙 ${coins()}</button>
       <button class="iconbtn" id="mute" aria-label="Geluid aan/uit">${S.mute ? '🔇' : '🔊'}</button>
     </div>
-    <div class="hello">${pion(64)}<div class="bubble">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
-    <div class="extra"><button class="btn exambtn" data-exam>📝 Proefexamen${S.ex.n ? ` <small>${S.ex.pass || 0} van ${S.ex.n} geslaagd</small>` : ''}</button></div>
+    <div class="hello"><span id="pet" role="button" aria-label="Pion">${pion(64)}</span><div class="bubble" id="says">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
+    <div class="extra duo"><button class="btn bookbtn" data-lib>📚 Theorieboek</button><button class="btn exambtn" data-exam>📝 Proefexamen${S.ex.n ? ` <small>${S.ex.pass || 0} van ${S.ex.n} geslaagd</small>` : ''}</button></div>
     ${THEMES.map(t => {
       const ls = lessonsOf(t), done = Math.min(S.done[t.id] || 0, ls.length), items = [];
       ls.forEach((_, i) => { items.push({ k: 'lesson', i }); if (i === 0 && ls.length >= 2) items.push({ k: 'game' }); });
@@ -511,6 +583,9 @@ function home() {
   screenToken++;
   decoratePaths();
   document.getElementById('shop').onclick = () => { Sound.tap(); shop(); };
+  const pet = document.getElementById('pet');
+  pet.onclick = () => { pet.classList.remove('poke'); void pet.offsetWidth; pet.classList.add('poke'); Sound.tap(); document.getElementById('says').textContent = POKES[Math.floor(Math.random() * POKES.length)]; };
+  $app.querySelectorAll('[data-lib]').forEach(b => b.onclick = () => { Sound.tap(); book(); });
   $app.querySelectorAll('.node[data-sp]:not(:disabled)').forEach(b => b.onclick = () => {
     const t = THEMES.find(t => t.id === b.dataset.theme); Sound.tap();
     if (b.dataset.sp === 'chest') openChest(t); else if (memoryPairs(t)) startMemory(t); else startBlitz(t);
@@ -522,7 +597,7 @@ function home() {
     const cards = cardsFor(t, i);
     if (cards.length) showTheory(t, cards, `${t.name} · les ${i + 1}`, go, 'Begin met oefenen'); else go();
   });
-  $app.querySelectorAll('[data-book]').forEach(b => b.onclick = () => { const t = THEMES.find(t => t.id === b.dataset.book); Sound.tap(); showTheory(t, THEORY[t.id], t.name, home, 'Terug'); });
+  $app.querySelectorAll('[data-book]').forEach(b => b.onclick = () => { const t = THEMES.find(t => t.id === b.dataset.book); Sound.tap(); bookTheme(t, home); });
   const w = document.getElementById('weak'); if (w) w.onclick = () => startLesson(shuffle(weakIds().map(id => ALL[id])).slice(0, 10), { title: 'Zwakke punten' });
   document.getElementById('mix').onclick = () => startLesson(shuffle(Object.values(ALL)).slice(0, 10), { title: 'Mix' });
   const f = document.getElementById('flags'); if (f) f.onclick = showFlags;
@@ -539,6 +614,11 @@ function goHere() {
 try { history.scrollRestoration = 'manual'; } catch (_) {}
 addEventListener('load', () => setTimeout(goHere, 60));
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// Pion kijkt naar waar je tikt of beweegt.
+addEventListener('pointermove', e => { const r = document.documentElement.style; r.setProperty('--lx', ((e.clientX / innerWidth - .5) * 3.4).toFixed(2) + 'px'); r.setProperty('--ly', ((e.clientY / innerHeight - .5) * 2.6).toFixed(2) + 'px'); }, { passive: true });
+addEventListener('pointerdown', e => { const r = document.documentElement.style; r.setProperty('--lx', ((e.clientX / innerWidth - .5) * 3.4).toFixed(2) + 'px'); r.setProperty('--ly', ((e.clientY / innerHeight - .5) * 2.6).toFixed(2) + 'px'); }, { passive: true });
+const POKES = ['Hé, dat kietelt!', 'Ik ben een pylon, geen knop 😄', 'Zullen we een lesje doen?', 'Oranje staat mij goed, hè?', 'Niet omrijden hè!', 'Ik sta hier al de hele dag. Gezellig dat je er bent.', 'Tip: in het theorieboek staat alles nog eens op een rij.'];
 
 // ---------- Het pad: weg, decor en Pion bij de les waar je bent ----------
 let screenToken = 0;
@@ -565,7 +645,7 @@ function countUp(el, n) { if (!el) return; const t0 = performance.now(); const f
 function comboToast(n) { const el = document.createElement('div'); el.className = 'combotoast'; el.textContent = `🔥 ${n} op rij!`; document.body.appendChild(el); setTimeout(() => el.remove(), 1500); }
 function gameDone(title, sub, xp, cards) {
   save(); Sound.win(); confetti();
-  $app.innerHTML = `<div class="finish">${pion(120)}<h2>${esc(title)}</h2><div style="color:var(--soft)">${esc(sub)}</div>
+  $app.innerHTML = `<div class="finish">${pion(120, 'excited')}<h2>${esc(title)}</h2><div style="color:var(--soft)">${esc(sub)}</div>
     <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>XP</span></div>${cards}</div>
     <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
   countUp(document.getElementById('xpn'), xp);
@@ -658,7 +738,7 @@ function startExam() {
     if (pass) { Sound.win(); confetti(); } else Sound.bad();
     const wrong = answers.filter(a => !a.ok);
     $app.innerHTML = `<div class="qwrap" style="padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:110px">
-      <div style="text-align:center">${pion(96, pass ? 'happy' : 'sad')}<h2 class="exres ${pass ? 'ok' : 'no'}">${pass ? 'Geslaagd! 🎉' : 'Helaas, gezakt'}</h2>
+      <div style="text-align:center">${pion(96, pass ? 'excited' : 'sad')}<h2 class="exres ${pass ? 'ok' : 'no'}">${pass ? 'Geslaagd! 🎉' : 'Helaas, gezakt'}</h2>
         <div style="color:var(--soft);font-weight:700">${pass ? 'Alle drie de onderdelen gehaald.' : 'Je moet alle drie de onderdelen halen.'} +${xp} XP</div></div>
       ${score.map(s => `<div class="expart ${s.n >= s.p.need ? 'ok' : 'no'}"><b>${s.p.name}</b><span>${s.n} / ${s.p.qs.length} goed · nodig ${s.p.need}</span><em>${s.n >= s.p.need ? '✓ gehaald' : '✗ niet gehaald'}</em>
         <div class="exbar"><i style="width:${s.n / s.p.qs.length * 100}%"></i><u style="left:${s.p.need / s.p.qs.length * 100}%"></u></div></div>`).join('')}
@@ -761,10 +841,81 @@ function startBlitz(t) {
   next();
 }
 
+// ---------- Theorieboek: categorieën → thema → hoofdstuk / borden / voorbeelden / getallen ----------
+const BOOK = window.BOOK || {}, BOOKCATS = window.BOOKCATS || [];
+const covered = t => (S.done[t.id] || 0) >= 1;
+const answerOf = q => q.t === 'mc' ? q.a[q.c] : q.t === 'yn' ? (q.c ? 'Ja' : 'Nee') : q.t === 'num' ? `${q.c} ${q.unit || ''}` : q.t === 'order' ? q.order.map((id, k) => `${k + 1}. ${q.scene.v.find(v => v.id === id).n}`).join(', ') : '';
+const bookImg = im => Array.isArray(im) ? sign(im) : im && im.q && ALL[im.q] && ALL[im.q].scene ? scene(ALL[im.q].scene) : '';
+// Wat er per thema te lezen valt, deels afgeleid uit de vragen (borden, uitgewerkte voorbeelden, getallen).
+function bookParts(t) {
+  const seen = new Set(), signs = [], examples = [], facts = [];
+  for (const q of t.qs) {
+    if (q.sign && /^Bord /.test(q.e) && !seen.has(q.sign.join())) { seen.add(q.sign.join()); signs.push(q); }
+    if (q.t === 'num') facts.push([q.q, answerOf(q)]);
+    else if (q.t !== 'order' ? (q.scene || q.sign || t.qs.filter(x => x.scene || x.sign).length < 3) : true) examples.push(q);
+  }
+  for (const x of EXTRA[t.id] || []) if (x.t === 'match' && x.pairs.every(p => typeof p[0] === 'string')) x.pairs.forEach(p => facts.push([p[0], p[1]]));
+  return { chapters: THEORY[t.id] || [], signs, examples: examples.slice(0, 10), facts };
+}
+function book() {
+  const all = THEMES.filter(t => (THEORY[t.id] || []).length), n = all.filter(covered).length;
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">✕</button><b style="flex:1;font-size:20px">Theorieboek</b></div>
+    <div class="qwrap" style="padding-bottom:40px"><div class="hello" style="padding:0 0 14px">${pion(56, 'think')}<div class="bubble">${n ? `Je hebt ${n} van de ${all.length} thema's behandeld. Lees ze hier rustig na.` : 'Hier staat alle theorie op een rij. Begin met een les en lees het daarna hier na.'}</div></div>
+      ${BOOKCATS.map(c => `<h3 class="cat">${c.icon} ${esc(c.name)}</h3><div class="shelf">${c.themes.map(id => THEMES.find(t => t.id === id)).filter(Boolean).map(t => { const p = bookParts(t);
+        return `<button class="tile ${covered(t) ? 'cov' : ''}" data-open="${t.id}" style="--c:${t.color}"><span class="tic">${t.icon}</span><b>${esc(t.name)}</b>
+          <small>${p.chapters.length} hoofdstukken${p.signs.length ? ` · ${p.signs.length} borden` : ''}</small><em>${covered(t) ? '✓ behandeld' : 'komt nog'}</em></button>`; }).join('')}</div>`).join('')}
+    </div>`;
+  document.getElementById('quit').onclick = home;
+  $app.querySelectorAll('[data-open]').forEach(b => b.onclick = () => { Sound.tap(); bookTheme(THEMES.find(t => t.id === b.dataset.open), book); });
+  scrollTo(0, 0);
+}
+function bookTheme(t, back = book) {
+  const p = bookParts(t), row = (kind, i, thumb, title, sub) => `<button class="brow2" data-kind="${kind}" data-i="${i}"><span class="thumb">${thumb}</span><span><b>${esc(title)}</b><small>${esc(sub)}</small></span><i>›</i></button>`;
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">‹</button><b style="flex:1;font-size:18px">Theorieboek</b></div>
+    <div class="qwrap" style="padding-bottom:40px">
+      <div class="bhero" style="--c:${t.color}"><span class="tic">${t.icon}</span><div><h2>${esc(t.name)}</h2><small>${esc(t.ch || '')} · ${covered(t) ? 'behandeld' : 'nog niet behandeld'}</small></div></div>
+      <h3 class="cat">Uitleg</h3>
+      ${p.chapters.map((c, i) => { const im = ((BOOK[t.id] || [])[i] || {}).img || []; return row('ch', i, im.length ? bookImg(im[0]) : `<span class="num">${i + 1}</span>`, c.h, c.b.slice(0, 62) + '…'); }).join('')}
+      ${p.signs.length || p.examples.length || p.facts.length ? '<h3 class="cat">Naslag</h3>' : ''}
+      ${p.signs.length ? row('signs', 0, sign(p.signs[0].sign), 'Borden bij dit thema', `${p.signs.length} borden met hun betekenis`) : ''}
+      ${p.examples.length ? row('ex', 0, '💬', 'Uitgewerkte voorbeelden', `${p.examples.length} situaties met het antwoord en waarom`) : ''}
+      ${p.facts.length ? row('facts', 0, '🔢', 'Getallen en feiten', `${p.facts.length} dingen om te onthouden`) : ''}
+    </div>`;
+  document.getElementById('quit').onclick = back;
+  $app.querySelectorAll('.brow2').forEach(b => b.onclick = () => { Sound.tap(); bookPage(t, b.dataset.kind, +b.dataset.i, back); });
+  scrollTo(0, 0);
+}
+function bookPage(t, kind, i, back) {
+  const p = bookParts(t); let title, body, nav = '';
+  if (kind === 'ch') {
+    const c = p.chapters[i], x = (BOOK[t.id] || [])[i] || {}, rel = t.qs.filter(q => q.t === 'num' && c.b.includes(String(q.c))).slice(0, 3);
+    title = c.h;
+    body = `${(x.img || []).length ? `<div class="bimgs ${x.img.some(im => !Array.isArray(im)) ? 'one' : ''}">${x.img.map(bookImg).join('')}</div>` : ''}
+      <p class="btext">${esc(c.b)}</p>
+      ${x.ex ? `<div class="bex"><b>Voorbeeld</b><p>${esc(x.ex)}</p></div>` : ''}
+      ${rel.length ? `<div class="bfacts"><b>Onthoud</b>${rel.map(q => `<div><span>${esc(q.q)}</span><strong>${esc(answerOf(q))}</strong></div>`).join('')}</div>` : ''}`;
+    nav = `<div class="bnav">${i > 0 ? `<button class="btn ghost" data-go="${i - 1}">‹ Vorige</button>` : '<span></span>'}${i < p.chapters.length - 1 ? `<button class="btn" data-go="${i + 1}">Volgende ›</button>` : '<button class="btn green" data-go="-1">Klaar</button>'}</div>`;
+  } else if (kind === 'signs') {
+    title = 'Borden bij dit thema';
+    body = p.signs.map(q => `<div class="bsign">${sign(q.sign)}<p>${esc(q.e)}</p></div>`).join('');
+  } else if (kind === 'ex') {
+    title = 'Uitgewerkte voorbeelden';
+    body = p.examples.map(q => `<div class="bcase">${q.scene || q.sign ? `<div class="pic">${q.scene ? scene(q.scene) : sign(q.sign)}</div>` : ''}<b>${esc(q.q)}</b><span class="ans">${esc(answerOf(q))}</span><p>${esc(q.e)}</p></div>`).join('');
+  } else {
+    title = 'Getallen en feiten';
+    body = `<div class="bfacts">${p.facts.map(f => `<div><span>${esc(f[0])}</span><strong>${esc(f[1])}</strong></div>`).join('')}</div>`;
+  }
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">‹</button><b style="flex:1;font-size:16px;color:${t.color}">${t.icon} ${esc(t.name)}${kind === 'ch' ? ` · ${i + 1}/${p.chapters.length}` : ''}</b></div>
+    <div class="qwrap bpage" style="padding-bottom:${nav ? 120 : 40}px"><h2 class="btitle">${esc(title)}</h2>${body}</div>${nav ? `<div class="checkbar"><div>${nav}</div></div>` : ''}`;
+  document.getElementById('quit').onclick = () => bookTheme(t, back);
+  $app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => { Sound.tap(); +b.dataset.go < 0 ? bookTheme(t, back) : bookPage(t, 'ch', +b.dataset.go, back); });
+  scrollTo(0, 0);
+}
+
 // Theoriekaartjes: vóór een les, of alles van een thema via het boekje
 function showTheory(t, cards, title, next, label) {
   $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">✕</button><b style="flex:1">${esc(title)}</b></div>
-    <div class="qwrap"><div class="hello" style="padding:0 0 12px">${pion(56)}<div class="bubble">Eerst even lezen, dan oefenen.</div></div>
+    <div class="qwrap"><div class="hello" style="padding:0 0 12px">${pion(56, 'think')}<div class="bubble">Eerst even lezen, dan oefenen.</div></div>
       ${cards.map(c => `<div class="tcard" style="--c:${t.color}"><h4>${esc(c.h)}</h4><p>${esc(c.b)}</p></div>`).join('')}</div>
     <div class="checkbar"><div><button class="btn green" id="tgo">${esc(label)}</button></div></div>`;
   document.getElementById('quit').onclick = home;
@@ -945,7 +1096,7 @@ function startLesson(qs, meta) {
     S.xp += xp; S.days[dayKey()] = todayXp() + xp;
     if (meta.theme) { S.done[meta.theme.id] = Math.max(S.done[meta.theme.id] || 0, meta.index + 1); S.last = meta.theme.id; }
     save(); Sound.win(); confetti();
-    $app.innerHTML = `<div class="finish">${pion(120)}
+    $app.innerHTML = `<div class="finish">${pion(120, 'excited')}
       <h2>${perfect ? 'Foutloos! 🌟' : 'Les gehaald!'}</h2>
       <div style="color:var(--soft)">${esc(meta.title)}</div>
       <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>${dbl ? 'XP · dubbel!' : 'XP'}</span></div>
