@@ -23,4 +23,5 @@ De thema-indeling volgt het ANWB-theorieboek personenauto: 18 thema's, 42 lessen
 64 theoriekaartjes. De vragen staan in `questions.js`, `questions2.js` en `questions3.js` en zijn zelf geschreven oefenvragen, geen officiële
 CBR-vragen; er kunnen fouten in zitten. `index.html#overzicht` toont alle tekeningen op één pagina.
 
-Nog te doen: een proefexamen in CBR-opzet.
+**Proefexamen** in CBR-opzet: gevaarherkenning (25 vragen, 13 goed, 8 seconden per vraag), kennis (12, 10 goed)
+en inzicht (28, 25 goed), met de uitslag per onderdeel en een overzicht van de fouten aan het eind.

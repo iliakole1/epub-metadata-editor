@@ -107,6 +107,18 @@
   .wearing { color: var(--green-d); font-size: 14px; padding: 9px 0; }
   .hintbtn { margin-top: 14px; border: 2px dashed #ffd43b; background: #fff9db; color: #a56a00; border-radius: 14px; padding: 9px 14px; cursor: pointer; font: inherit; font-size: 15px; }
   .opt.gone { opacity: .3; text-decoration: line-through; pointer-events: none; }
+  /* proefexamen */
+  .exambtn { background: #343a40; box-shadow: 0 4px 0 #111; } .exambtn small { display: block; font-size: 12px; opacity: .75; text-transform: none; }
+  .exres { font-size: 30px; font-weight: 900; margin: 6px 0 4px; } .exres.ok { color: var(--green-d); } .exres.no { color: var(--red-d); }
+  .expart { border: 2px solid var(--line); border-radius: 16px; padding: 12px 14px; margin-top: 12px; display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; }
+  .expart span { grid-column: 1; font-weight: 600; font-size: 14px; color: var(--soft); } .expart em { grid-row: 1 / span 2; grid-column: 2; align-self: center; font-style: normal; font-size: 14px; }
+  .expart.ok { border-color: #b2f2bb; } .expart.ok em { color: var(--green-d); } .expart.no { border-color: #ffc9c9; } .expart.no em { color: var(--red-d); }
+  .exbar { grid-column: 1 / -1; position: relative; height: 12px; background: var(--line); border-radius: 6px; margin-top: 8px; }
+  .exbar i { display: block; height: 100%; border-radius: 6px; background: var(--red); } .expart.ok .exbar i { background: var(--green); }
+  .exbar u { position: absolute; top: -4px; bottom: -4px; width: 3px; background: var(--ink); border-radius: 2px; }
+  .exwrong { border: 2px solid var(--line); border-radius: 14px; padding: 12px 14px; margin-bottom: 10px; display: grid; gap: 4px; }
+  .exwrong span { font-size: 15px; } .exwrong .no { color: var(--red-d); } .exwrong .ok { color: var(--green-d); } .exwrong p { margin: 2px 0 0; font-weight: 600; font-size: 14px; color: var(--soft); }
+  .exwrong .pic { margin: 6px 0; } .exwrong .pic svg.sign { width: 70px; height: 70px; }
   /* memory */
   .memory { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .mcard { height: 104px; border: 0; background: none; padding: 0; cursor: pointer; perspective: 600px; }
@@ -196,6 +208,7 @@
 <div id="app"></div>
 <script src="questions.js?v=2"></script>
 <script src="questions2.js?v=2"></script>
+<script src="questions4.js?v=1"></script>
 <script src="questions3.js?v=1"></script>
 <script>
 (() => {
@@ -208,7 +221,7 @@ const LESSON_SIZE = 8, DAILY_GOAL = 50;
 
 // ---------- Opslag (alleen op dit apparaat) ----------
 const KEY = 'theorie-v1';
-let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], sp: {}, best: {}, owned: {}, buy: {}, use: {}, frozen: {}, skin: 'classic', mute: false };
+let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], sp: {}, best: {}, owned: {}, buy: {}, use: {}, frozen: {}, skin: 'classic', ex: {}, mute: false };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (_) {}
 const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
 const save = () => { saveLocal(); schedulePush(); };
@@ -233,9 +246,10 @@ function mergeState(R) {
   for (const k of Object.keys(R.owned || {})) S.owned[k] = true;
   for (const f of ['buy', 'use']) for (const [k, v] of Object.entries(R[f] || {})) S[f][k] = Math.max(S[f][k] || 0, +v || 0);
   for (const k of Object.keys(R.frozen || {})) S.frozen[k] = true;
+  for (const [k, v] of Object.entries(R.ex || {})) S.ex[k] = Math.max(S.ex[k] || 0, +v || 0);
   if (S.skin === 'classic' && R.skin && (R.skin === 'classic' || S.owned[R.skin])) S.skin = R.skin;
 }
-const FIELDS = ['xp', 'days', 'done', 'q', 'flags', 'sp', 'best', 'owned', 'buy', 'use', 'frozen', 'skin'];
+const FIELDS = ['xp', 'days', 'done', 'q', 'flags', 'sp', 'best', 'owned', 'buy', 'use', 'frozen', 'skin', 'ex'];
 const cloudBody = (o = S) => JSON.stringify(Object.fromEntries(FIELDS.map(f => [f, o ? o[f] : undefined])));
 async function push() {
   try { const r = await fetch(CLOUD, { method: 'PUT', body: cloudBody() }); setCloud(r.ok ? 'ok' : 'uit'); } catch (_) { setCloud('uit'); }
@@ -465,6 +479,7 @@ function home() {
       <button class="iconbtn" id="mute" aria-label="Geluid aan/uit">${S.mute ? '🔇' : '🔊'}</button>
     </div>
     <div class="hello">${pion(64)}<div class="bubble">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
+    <div class="extra"><button class="btn exambtn" data-exam>📝 Proefexamen${S.ex.n ? ` <small>${S.ex.pass || 0} van ${S.ex.n} geslaagd</small>` : ''}</button></div>
     ${THEMES.map(t => {
       const ls = lessonsOf(t), done = Math.min(S.done[t.id] || 0, ls.length), items = [];
       ls.forEach((_, i) => { items.push({ k: 'lesson', i }); if (i === 0 && ls.length >= 2) items.push({ k: 'game' }); });
@@ -487,10 +502,10 @@ function home() {
       ${inv('dbl') > 0 ? `<div class="pill">✖️2 Dubbele XP staat klaar voor je volgende les</div>` : ''}
       ${weak ? `<button class="btn red" id="weak">💪 Oefen mijn zwakke punten (${weak})</button>` : ''}
       <button class="btn ghost" id="mix">🎲 Mix: 10 willekeurige vragen</button>
+      <button class="btn exambtn" data-exam>📝 Proefexamen</button>
     </div>
     <div class="foot">Zelfgeschreven oefenvragen, geen officiële CBR-vragen. Gebruik dit naast je theorieboek.<br>
-      Het proefexamen volgt nog.<br>
-      <span id="cloud">${cloudText()}</span><br>
+            <span id="cloud">${cloudText()}</span><br>
       ${S.flags.length ? `<button id="flags">Gemarkeerde vragen (${S.flags.length})</button>` : ''}</div>`;
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   screenToken++;
@@ -511,8 +526,18 @@ function home() {
   const w = document.getElementById('weak'); if (w) w.onclick = () => startLesson(shuffle(weakIds().map(id => ALL[id])).slice(0, 10), { title: 'Zwakke punten' });
   document.getElementById('mix').onclick = () => startLesson(shuffle(Object.values(ALL)).slice(0, 10), { title: 'Mix' });
   const f = document.getElementById('flags'); if (f) f.onclick = showFlags;
-  scrollTo(0, 0);
+  $app.querySelectorAll('[data-exam]').forEach(b => b.onclick = () => { Sound.tap(); examIntro(); });
+  // Naar waar je gebleven bent: de volgende les van het thema waar je het laatst mee bezig was.
+  goHere();
 }
+function goHere() {
+  if (!document.querySelector('.top')) return;
+  const here = (S.last && $app.querySelector(`.node.now[data-theme="${S.last}"], .node.chest.ready[data-theme="${S.last}"]`)) || $app.querySelector('.node.now');
+  if (here && S.xp > 0) here.scrollIntoView({ block: 'center' }); else scrollTo(0, 0);
+}
+// de browser zet na het laden zelf de scrollpositie terug; daarna nog één keer naar de goede plek
+try { history.scrollRestoration = 'manual'; } catch (_) {}
+addEventListener('load', () => setTimeout(goHere, 60));
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 
 // ---------- Het pad: weg, decor en Pion bij de les waar je bent ----------
@@ -545,6 +570,105 @@ function gameDone(title, sub, xp, cards) {
     <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
   countUp(document.getElementById('xpn'), xp);
   document.getElementById('back').onclick = home;
+}
+
+// ---------- Proefexamen in CBR-opzet ----------
+// Drie onderdelen; voor alle drie moet je slagen. Geen uitleg tussendoor, de uitslag komt aan het eind.
+const EXAM = [
+  { id: 'g', name: 'Gevaarherkenning', n: 25, need: 13, themes: ['gevaar'], info: 'Bij elke situatie kies je: remmen, gas loslaten of niets doen. Je hebt 8 seconden per vraag.' },
+  { id: 'k', name: 'Kennis', n: 12, need: 10, themes: ['borden', 'snelheid', 'begrippen', 'alcohol', 'lichten', 'tekens', 'parkeren', 'verlichting', 'voertuig', 'milieu', 'rijbewijs'], info: 'Vragen over regels, borden en getallen.' },
+  { id: 'i', name: 'Inzicht', n: 28, need: 25, themes: ['voorrang', 'plaats', 'afslaan', 'snelweg', 'bijzonder', 'ongeval'], info: 'Vragen over verkeerssituaties: wat doe je, en wie gaat voor?' },
+];
+const EXAM_MIN = 30;                               // tijd voor kennis en inzicht samen
+function examIntro() {
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">✕</button><b style="flex:1;font-size:20px">Proefexamen</b></div>
+    <div class="qwrap"><div class="hello" style="padding:0 0 14px">${pion(56)}<div class="bubble">Net als bij het CBR: drie onderdelen, en je moet ze alle drie halen.</div></div>
+      ${EXAM.map((p, i) => `<div class="tcard" style="--c:${['#d9480f', '#1c7ed6', '#2f9e44'][i]}"><h4>${i + 1}. ${p.name}</h4><p>${p.n} vragen, minstens ${p.need} goed. ${p.info}</p></div>`).join('')}
+      <p style="font-weight:600;color:var(--soft);font-size:14px">Voor kennis en inzicht samen heb je ${EXAM_MIN} minuten. Je krijgt de uitslag en de uitleg pas aan het eind. De vragen zijn oefenvragen, geen echte CBR-vragen.</p></div>
+    <div class="checkbar"><div><button class="btn green" id="tgo">Start het examen</button></div></div>`;
+  document.getElementById('quit').onclick = home;
+  document.getElementById('tgo').onclick = () => { Sound.tap(); startExam(); };
+  scrollTo(0, 0);
+}
+function startExam() {
+  const token = ++screenToken, alive = () => token === screenToken;
+  const usable = q => ['mc', 'yn', 'num', 'order'].includes(q.t);
+  const parts = EXAM.map(p => ({ ...p, qs: shuffle(THEMES.filter(t => p.themes.includes(t.id)).flatMap(t => t.qs.filter(usable))).slice(0, p.n) }));
+  const answers = [];                               // { q, part, ans, ok }
+  let pi = 0, qi = 0, deadline = 0, tick = 0, qTimer = 0;
+  const isRight = (q, a) => a == null ? false : q.t === 'mc' ? a === q.c : q.t === 'yn' ? a === q.c : q.t === 'num' ? Number(a) === q.c : a.every((id, k) => id === q.order[k]);
+  const say = (q, a) => a == null ? 'geen antwoord' : q.t === 'mc' ? q.a[a] : q.t === 'yn' ? (a ? 'Ja' : 'Nee') : q.t === 'num' ? `${a} ${q.unit || ''}` : a.map((id, k) => `${k + 1}. ${q.scene.v.find(v => v.id === id).n}`).join(', ');
+  const good = q => say(q, q.t === 'order' ? q.order : q.c);
+  const record = (q, a) => { answers.push({ q, part: parts[pi], ans: a, ok: isRight(q, a) }); qi++; show(); };
+
+  const partIntro = () => {
+    const p = parts[pi];
+    $app.innerHTML = `<div class="finish">${pion(96)}<h2 style="color:var(--blue)">Onderdeel ${pi + 1}: ${p.name}</h2><div style="color:var(--soft);max-width:320px">${p.qs.length} vragen, minstens ${p.need} goed.<br>${p.info}</div>
+      <button class="btn green" id="pgo" style="max-width:320px">Begin</button><button class="btn ghost" id="pquit" style="max-width:320px">Examen stoppen</button></div>`;
+    document.getElementById('pquit').onclick = home;
+    document.getElementById('pgo').onclick = () => { Sound.tap(); if (pi === 1) { deadline = Date.now() + EXAM_MIN * 60000; tick = setInterval(clock, 500); } show(); };
+    scrollTo(0, 0);
+  };
+  const clock = () => {
+    if (!alive()) return clearInterval(tick);
+    const left = Math.max(0, deadline - Date.now()), el = document.getElementById('clock');
+    if (el) el.textContent = `⏱ ${Math.floor(left / 60000)}:${String(Math.floor(left / 1000) % 60).padStart(2, '0')}`;
+    if (!left) { clearInterval(tick);                // tijd om: alles wat nog open staat telt als fout
+      for (; pi < parts.length; pi++, qi = 0) for (; qi < parts[pi].qs.length; qi++) answers.push({ q: parts[pi].qs[qi], part: parts[pi], ans: null, ok: false });
+      results(); }
+  };
+  function show() {
+    if (!alive()) return;
+    clearTimeout(qTimer);
+    if (qi >= parts[pi].qs.length) { pi++; qi = 0; if (pi >= parts.length) { clearInterval(tick); return results(); } return partIntro(); }
+    const p = parts[pi], q = p.qs[qi], hazard = p.id === 'g';
+    $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Stoppen">✕</button><b style="flex:1">${p.name} · ${qi + 1}/${p.qs.length}</b>${hazard ? '' : '<span class="combo" id="clock" style="min-width:74px"></span>'}</div>
+      ${hazard ? '<div class="bar timer" style="margin:0 16px;flex:none;height:12px"><i style="animation-duration:8s;background:linear-gradient(#ffa94d,#f76707)"></i></div>' : ''}
+      <div class="qwrap" id="qwrap"><h3>${esc(q.q)}</h3>${picture(q)}<div id="ea"></div></div>
+      ${hazard ? '' : '<div class="checkbar"><div><button class="btn green" id="enext" disabled>Volgende</button></div></div>'}`;
+    document.getElementById('quit').onclick = () => { clearInterval(tick); home(); };
+    const ea = document.getElementById('ea'), nextBtn = document.getElementById('enext'); let ans;
+    const set = a => { ans = a; if (nextBtn) nextBtn.disabled = a == null; };
+    if (hazard) {
+      ea.innerHTML = `<div class="opts">${q.a.map((a, i) => `<button class="opt" data-i="${i}">${esc(a)}</button>`).join('')}</div>`;
+      ea.querySelectorAll('.opt').forEach(b => b.onclick = () => { Sound.tap(); record(q, +b.dataset.i); });
+      qTimer = setTimeout(() => { if (alive()) record(q, null); }, 8000);
+    } else if (q.t === 'mc' || q.t === 'yn') {
+      const opts = q.t === 'yn' ? [{ a: 'Ja', v: true }, { a: 'Nee', v: false }] : shuffle(q.a.map((a, i) => ({ a, v: i })));
+      ea.innerHTML = `<div class="opts ${q.t === 'yn' ? 'yn' : ''}">${opts.map((o, i) => `<button class="opt" data-i="${i}">${esc(o.a)}</button>`).join('')}</div>`;
+      ea.querySelectorAll('.opt').forEach(b => b.onclick = () => { ea.querySelectorAll('.opt').forEach(o => o.classList.remove('picked')); b.classList.add('picked'); Sound.tap(); set(opts[+b.dataset.i].v); });
+    } else if (q.t === 'num') {
+      ea.innerHTML = `<div class="numrow"><input id="num" type="number" inputmode="numeric" pattern="[0-9]*" placeholder="?"><span>${esc(q.unit || '')}</span></div>`;
+      const inp = document.getElementById('num'); inp.oninput = () => set(inp.value.trim() === '' ? null : inp.value);
+    } else {
+      const vs = shuffle(q.scene.v), draw = picked => { ea.innerHTML = `<div class="opts">${vs.map(v => `<button class="opt ${picked.includes(v.id) ? 'picked' : ''}" data-id="${v.id}">${picked.includes(v.id) ? `<span class="n">${picked.indexOf(v.id) + 1}</span>` : ''}${esc(v.n)}</button>`).join('')}</div>${picked.length ? '<button class="hintbtn" id="again">Opnieuw</button>' : ''}`;
+        ea.querySelectorAll('.opt').forEach(b => b.onclick = () => { if (picked.includes(b.dataset.id)) return; Sound.tap(); const np = [...picked, b.dataset.id]; set(np.length === vs.length ? np : null); draw(np); });
+        const ag = document.getElementById('again'); if (ag) ag.onclick = () => { set(null); draw([]); }; };
+      draw([]);
+    }
+    if (nextBtn) nextBtn.onclick = () => { Sound.tap(); record(q, ans); };
+    if (!hazard) clock();
+    scrollTo(0, 0);
+  }
+  function results() {
+    if (!alive()) return; screenToken++;
+    const score = parts.map(p => ({ p, n: answers.filter(a => a.part === p && a.ok).length })), pass = score.every(s => s.n >= s.p.need);
+    answers.filter(a => !a.ok).forEach(a => { const st = S.q[a.q.id] || (S.q[a.q.id] = { r: 0, w: 0 }); st.r = 0; st.w++; st.t = Date.now(); });   // fouten komen bij je zwakke punten
+    const xp = pass ? 150 : 50; award(xp); S.ex.n = (S.ex.n || 0) + 1; if (pass) S.ex.pass = (S.ex.pass || 0) + 1; save();
+    if (pass) { Sound.win(); confetti(); } else Sound.bad();
+    const wrong = answers.filter(a => !a.ok);
+    $app.innerHTML = `<div class="qwrap" style="padding-top:calc(20px + env(safe-area-inset-top));padding-bottom:110px">
+      <div style="text-align:center">${pion(96, pass ? 'happy' : 'sad')}<h2 class="exres ${pass ? 'ok' : 'no'}">${pass ? 'Geslaagd! 🎉' : 'Helaas, gezakt'}</h2>
+        <div style="color:var(--soft);font-weight:700">${pass ? 'Alle drie de onderdelen gehaald.' : 'Je moet alle drie de onderdelen halen.'} +${xp} XP</div></div>
+      ${score.map(s => `<div class="expart ${s.n >= s.p.need ? 'ok' : 'no'}"><b>${s.p.name}</b><span>${s.n} / ${s.p.qs.length} goed · nodig ${s.p.need}</span><em>${s.n >= s.p.need ? '✓ gehaald' : '✗ niet gehaald'}</em>
+        <div class="exbar"><i style="width:${s.n / s.p.qs.length * 100}%"></i><u style="left:${s.p.need / s.p.qs.length * 100}%"></u></div></div>`).join('')}
+      ${wrong.length ? `<h3 style="margin-top:22px">Je fouten (${wrong.length})</h3>` + wrong.map(a => `<div class="exwrong"><b>${esc(a.q.q)}</b>${a.q.sign ? picture(a.q) : ''}
+        <span class="no">Jouw antwoord: ${esc(say(a.q, a.ans))}</span><span class="ok">Goed: ${esc(good(a.q))}</span><p>${esc(a.q.e)}</p></div>`).join('') : '<p style="text-align:center;font-weight:800;color:var(--green-d)">Geen enkele fout. Knap!</p>'}
+      </div><div class="checkbar"><div><button class="btn green" id="back">Terug naar het pad</button></div></div>`;
+    document.getElementById('back').onclick = home;
+    scrollTo(0, 0);
+  }
+  partIntro();
 }
 
 // ---------- Winkel ----------
@@ -819,7 +943,7 @@ function startLesson(qs, meta) {
     const perfect = missed.size === 0; if (perfect) xp += 5;
     const dbl = inv('dbl') > 0; if (dbl) { xp *= 2; S.use.dbl = (S.use.dbl || 0) + 1; }
     S.xp += xp; S.days[dayKey()] = todayXp() + xp;
-    if (meta.theme) S.done[meta.theme.id] = Math.max(S.done[meta.theme.id] || 0, meta.index + 1);
+    if (meta.theme) { S.done[meta.theme.id] = Math.max(S.done[meta.theme.id] || 0, meta.index + 1); S.last = meta.theme.id; }
     save(); Sound.win(); confetti();
     $app.innerHTML = `<div class="finish">${pion(120)}
       <h2>${perfect ? 'Foutloos! 🌟' : 'Les gehaald!'}</h2>
