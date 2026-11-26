@@ -93,6 +93,20 @@
   .combotoast { position: fixed; left: 50%; top: 22%; z-index: 40; transform: translateX(-50%); background: #fff4e6; color: #e8590c; border: 2px solid #ffc078; border-radius: 16px;
     padding: 8px 18px; font-size: 22px; font-weight: 900; pointer-events: none; animation: toast 1.5s ease-out forwards; white-space: nowrap; }
   @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.6); } 18% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 30% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -30px); } }
+  /* winkel en boosts */
+  .coinbtn { border: 2px solid #ffe066; background: #fff9db; border-radius: 12px; padding: 3px 9px; cursor: pointer; font: inherit; font-weight: 900; }
+  .pill { background: #fff4e6; border: 2px solid #ffc078; color: #e8590c; border-radius: 14px; padding: 9px 12px; text-align: center; font-size: 15px; }
+  .sitem { display: flex; align-items: center; gap: 12px; border: 2px solid var(--line); border-radius: 16px; padding: 12px; margin-bottom: 10px; }
+  .sic { width: 50px; height: 50px; flex: none; display: grid; place-items: center; font-size: 24px; background: #f1f3f5; border-radius: 14px; white-space: nowrap; }
+  .sinfo { flex: 1; min-width: 0; } .sinfo b { display: block; } .sinfo small { display: block; font-weight: 600; color: var(--soft); font-size: 14px; line-height: 1.3; }
+  .sinfo em { font-style: normal; font-size: 13px; color: var(--green-d); }
+  .sbuy { width: auto; flex: none; padding: 9px 12px; font-size: 14px; text-transform: none; white-space: nowrap; }
+  .skins { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .skin { border: 2px solid var(--line); border-radius: 16px; padding: 22px 10px 12px; display: grid; justify-items: center; gap: 8px; text-align: center; }
+  .skin.on { border-color: var(--green); background: #ebfbee; } .skin .pion { animation: none; }
+  .wearing { color: var(--green-d); font-size: 14px; padding: 9px 0; }
+  .hintbtn { margin-top: 14px; border: 2px dashed #ffd43b; background: #fff9db; color: #a56a00; border-radius: 14px; padding: 9px 14px; cursor: pointer; font: inherit; font-size: 15px; }
+  .opt.gone { opacity: .3; text-decoration: line-through; pointer-events: none; }
   /* memory */
   .memory { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
   .mcard { height: 104px; border: 0; background: none; padding: 0; cursor: pointer; perspective: 600px; }
@@ -194,7 +208,7 @@ const LESSON_SIZE = 8, DAILY_GOAL = 50;
 
 // ---------- Opslag (alleen op dit apparaat) ----------
 const KEY = 'theorie-v1';
-let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], sp: {}, best: {}, mute: false };
+let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], sp: {}, best: {}, owned: {}, buy: {}, use: {}, frozen: {}, skin: 'classic', mute: false };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (_) {}
 const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
 const save = () => { saveLocal(); schedulePush(); };
@@ -215,8 +229,14 @@ function mergeState(R) {
   S.flags = [...new Set([...(S.flags || []), ...Object.values(R.flags || {})])];
   for (const k of Object.keys(R.sp || {})) S.sp[k] = true;
   for (const [k, v] of Object.entries(R.best || {})) S.best[k] = Math.max(S.best[k] || 0, +v || 0);
+  // winkel: wat je hebt gekocht en gebruikt gaat nooit verloren (per stuk het hoogste aantal)
+  for (const k of Object.keys(R.owned || {})) S.owned[k] = true;
+  for (const f of ['buy', 'use']) for (const [k, v] of Object.entries(R[f] || {})) S[f][k] = Math.max(S[f][k] || 0, +v || 0);
+  for (const k of Object.keys(R.frozen || {})) S.frozen[k] = true;
+  if (S.skin === 'classic' && R.skin && (R.skin === 'classic' || S.owned[R.skin])) S.skin = R.skin;
 }
-const cloudBody = () => JSON.stringify({ xp: S.xp, days: S.days, done: S.done, q: S.q, flags: S.flags, sp: S.sp, best: S.best });
+const FIELDS = ['xp', 'days', 'done', 'q', 'flags', 'sp', 'best', 'owned', 'buy', 'use', 'frozen', 'skin'];
+const cloudBody = (o = S) => JSON.stringify(Object.fromEntries(FIELDS.map(f => [f, o ? o[f] : undefined])));
 async function push() {
   try { const r = await fetch(CLOUD, { method: 'PUT', body: cloudBody() }); setCloud(r.ok ? 'ok' : 'uit'); } catch (_) { setCloud('uit'); }
 }
@@ -226,7 +246,7 @@ async function pull() {
     const r = await fetch(CLOUD); if (!r.ok) throw 0;
     const R = await r.json(), before = cloudBody();
     mergeState(R); saveLocal(); setCloud('ok');
-    if (cloudBody() !== JSON.stringify({ xp: R && R.xp, days: R && R.days, done: R && R.done, q: R && R.q, flags: R && R.flags, sp: R && R.sp, best: R && R.best })) push();
+    applyFreeze(); if (cloudBody() !== cloudBody(R || {})) push();
     if (cloudBody() !== before && document.querySelector('.top')) home();      // startscherm bijwerken met wat er binnenkwam
   } catch (_) { setCloud('uit'); }
 }
@@ -236,8 +256,35 @@ const todayXp = () => S.days[dayKey()] || 0;
 function streak() {
   let n = 0; const d = new Date();
   if (!S.days[dayKey(d)]) d.setDate(d.getDate() - 1);          // vandaag nog niet geoefend: reeks loopt nog
-  while (S.days[dayKey(d)]) { n++; d.setDate(d.getDate() - 1); }
+  while (S.days[dayKey(d)] || S.frozen[dayKey(d)]) { if (S.days[dayKey(d)]) n++; d.setDate(d.getDate() - 1); }
   return n;
+}
+
+// ---------- Winkel: munten = verdiende XP min wat je hebt uitgegeven ----------
+const SKINS = [
+  { id: 'classic', name: 'Pion', price: 0, body: '#ff922b', base: '#e8590c' },
+  { id: 'feest', name: 'Feest-Pion', price: 150, body: '#f06595', base: '#c2255c', acc: 'feest' },
+  { id: 'cool', name: 'Coole Pion', price: 200, body: '#ff922b', base: '#e8590c', acc: 'bril' },
+  { id: 'agent', name: 'Agent Pion', price: 300, body: '#339af0', base: '#1864ab', acc: 'pet' },
+  { id: 'kerst', name: 'Kerst-Pion', price: 300, body: '#e03131', base: '#2f9e44', acc: 'muts' },
+  { id: 'ninja', name: 'Ninja-Pion', price: 400, body: '#495057', base: '#212529', acc: 'band' },
+  { id: 'regenboog', name: 'Regenboog-Pion', price: 500, body: 'url(#rb)', base: '#7048e8' },
+  { id: 'koning', name: 'Koning Pion', price: 800, body: '#fcc419', base: '#e67700', acc: 'kroon' },
+];
+const BOOSTS = [
+  { id: 'dbl', icon: '✖️2', name: 'Dubbele XP', price: 80, desc: 'Je volgende les levert twee keer zo veel XP op.' },
+  { id: 'hint', icon: '💡', name: 'Hint', price: 25, desc: 'Streept bij een meerkeuzevraag één fout antwoord weg.' },
+  { id: 'freeze', icon: '🧊', name: 'Reeksbevriezing', price: 150, desc: 'Sla je een dag over, dan blijft je reeks staan.' },
+];
+const inv = id => (S.buy[id] || 0) - (S.use[id] || 0);
+const spent = () => SKINS.reduce((a, k) => a + (S.owned[k.id] ? k.price : 0), 0) + BOOSTS.reduce((a, b) => a + (S.buy[b.id] || 0) * b.price, 0);
+const coins = () => S.xp - spent();
+// Een gemiste dag (of een paar) dekken met reeksbevriezingen, als er daarvóór een reeks liep.
+function applyFreeze() {
+  const d = new Date(); d.setDate(d.getDate() - 1); const gap = [];
+  while (!S.days[dayKey(d)] && !S.frozen[dayKey(d)] && gap.length < 5) { gap.push(dayKey(d)); d.setDate(d.getDate() - 1); }
+  if (!gap.length || gap.length > inv('freeze') || !(S.days[dayKey(d)] || S.frozen[dayKey(d)])) return;
+  gap.forEach(k => { S.frozen[k] = true; }); S.use.freeze = (S.use.freeze || 0) + gap.length; saveLocal();
 }
 const weakIds = () => Object.keys(S.q).filter(id => ALL[id] && S.q[id].w > 0 && (S.q[id].r || 0) < 2);
 const lessonsOf = t => { const n = Math.max(1, Math.round(t.qs.length / LESSON_SIZE)), size = Math.ceil(t.qs.length / n);
@@ -265,12 +312,22 @@ const Sound = (() => {
 })();
 
 // ---------- Mascotte: Pion de pylon ----------
-const pion = (size = 64, mood = 'happy') => `<svg class="pion" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
-  <rect x="10" y="80" width="80" height="12" rx="5" fill="#e8590c"/>
-  <path d="M38 12h24l18 68H20z" fill="#ff922b"/><path d="M33 34h34l5 16H28z" fill="#fff"/><path d="M26 60h48l3 10H23z" fill="#fff"/>
-  <g class="eyes"><circle cx="42" cy="42" r="5" fill="#343a40"/><circle cx="58" cy="42" r="5" fill="#343a40"/><circle cx="43.5" cy="40.5" r="1.6" fill="#fff"/><circle cx="59.5" cy="40.5" r="1.6" fill="#fff"/></g>
+const ACC = {
+  feest: '<path d="M50-16L62 13H38z" fill="#7048e8"/><path d="M45-4l12 5M42 5l18 6" stroke="#ffd43b" stroke-width="3"/><circle cx="50" cy="-17" r="4.5" fill="#ffd43b"/>',
+  bril: '<path d="M30 37h40v5q0 8-8 8h-4q-6 0-7-7h-2q-1 7-7 7h-4q-8 0-8-8z" fill="#212529"/><path d="M36 40l5 0M56 40l5 0" stroke="#fff" stroke-width="2" stroke-linecap="round" opacity=".7"/>',
+  pet: '<path d="M34 13q16-16 32 0v3H34z" fill="#1c3f7a"/><path d="M30 15h44q2 4-4 5H34q-6-1-4-5z" fill="#102a54"/><circle cx="50" cy="8" r="3.2" fill="#ffd43b"/>',
+  muts: '<path d="M36 14Q44-14 70-6Q58-2 64 14z" fill="#e03131"/><rect x="33" y="10" width="34" height="8" rx="4" fill="#fff"/><circle cx="71" cy="-6" r="5.5" fill="#fff"/>',
+  band: '<path d="M34 26h32l2 8H32z" fill="#c92a2a"/><path d="M66 28l14-5-3 8zM66 31l12 5-8 3z" fill="#c92a2a"/>',
+  kroon: '<path d="M35 13L33-7l9 9 8-13 8 13 9-9-2 20z" fill="#ffd43b" stroke="#e67700" stroke-width="1.5" stroke-linejoin="round"/><circle cx="50" cy="6" r="2.6" fill="#e03131"/><circle cx="40" cy="8" r="1.8" fill="#1c7ed6"/><circle cx="60" cy="8" r="1.8" fill="#1c7ed6"/>',
+};
+const pion = (size = 64, mood = 'happy', skinId = S.skin) => { const k = SKINS.find(x => x.id === skinId) || SKINS[0], eye = k.acc === 'bril' ? '' : `<g class="eyes"><circle cx="42" cy="42" r="5" fill="#343a40"/><circle cx="58" cy="42" r="5" fill="#343a40"/><circle cx="43.5" cy="40.5" r="1.6" fill="#fff"/><circle cx="59.5" cy="40.5" r="1.6" fill="#fff"/></g>`;
+  return `<svg class="pion" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
+  ${k.id === 'regenboog' ? '<defs><linearGradient id="rb" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fa5252"/><stop offset=".25" stop-color="#fab005"/><stop offset=".5" stop-color="#40c057"/><stop offset=".75" stop-color="#228be6"/><stop offset="1" stop-color="#7048e8"/></linearGradient></defs>' : ''}
+  <rect x="10" y="80" width="80" height="12" rx="5" fill="${k.base}"/>
+  <path d="M38 12h24l18 68H20z" fill="${k.body}"/><path d="M33 34h34l5 16H28z" fill="#fff"/><path d="M26 60h48l3 10H23z" fill="#fff"/>
+  ${eye}${ACC[k.acc] || ''}
   ${mood === 'sad' ? '<path d="M43 58q7-6 14 0" fill="none" stroke="#343a40" stroke-width="3" stroke-linecap="round"/>' : '<path d="M42 54q8 9 16 0" fill="#343a40"/>'}
-</svg>`;
+</svg>`; };
 
 // ---------- Verkeersborden (zelf getekend, vereenvoudigd) ----------
 function sign([code, txt = '']) {
@@ -404,7 +461,7 @@ function home() {
     <div class="top">
       <div class="stat fire ${S.days[dayKey()] ? '' : 'off'}" title="Dagen op rij">🔥 ${st}</div>
       <div class="goal" title="Dagdoel"><i style="width:${Math.min(100, xpT / DAILY_GOAL * 100)}%"></i><span>${Math.min(xpT, DAILY_GOAL)} / ${DAILY_GOAL} XP vandaag</span></div>
-      <div class="stat xp" title="Totaal XP">⚡ ${S.xp}</div>
+      <button class="stat xp coinbtn" id="shop" aria-label="Winkel, ${coins()} munten">🪙 ${coins()}</button>
       <button class="iconbtn" id="mute" aria-label="Geluid aan/uit">${S.mute ? '🔇' : '🔊'}</button>
     </div>
     <div class="hello">${pion(64)}<div class="bubble">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
@@ -427,6 +484,7 @@ function home() {
         <div class="path" style="--c:${t.color}">${nodes}</div></div>`;
     }).join('')}
     <div class="extra">
+      ${inv('dbl') > 0 ? `<div class="pill">✖️2 Dubbele XP staat klaar voor je volgende les</div>` : ''}
       ${weak ? `<button class="btn red" id="weak">💪 Oefen mijn zwakke punten (${weak})</button>` : ''}
       <button class="btn ghost" id="mix">🎲 Mix: 10 willekeurige vragen</button>
     </div>
@@ -437,6 +495,7 @@ function home() {
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
   screenToken++;
   decoratePaths();
+  document.getElementById('shop').onclick = () => { Sound.tap(); shop(); };
   $app.querySelectorAll('.node[data-sp]:not(:disabled)').forEach(b => b.onclick = () => {
     const t = THEMES.find(t => t.id === b.dataset.theme); Sound.tap();
     if (b.dataset.sp === 'chest') openChest(t); else if (memoryPairs(t)) startMemory(t); else startBlitz(t);
@@ -486,6 +545,29 @@ function gameDone(title, sub, xp, cards) {
     <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
   countUp(document.getElementById('xpn'), xp);
   document.getElementById('back').onclick = home;
+}
+
+// ---------- Winkel ----------
+function shop() {
+  const c = coins();
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Terug">✕</button><b style="flex:1;font-size:20px">Winkel</b><span class="stat xp">🪙 ${c}</span></div>
+    <div class="qwrap" style="padding-bottom:40px">
+      <div class="hello" style="padding:0 0 14px">${pion(56)}<div class="bubble">Je verdient munten met elke XP. Uitgeven kost je geen XP of reeks.</div></div>
+      <h3>Boosts</h3>
+      ${BOOSTS.map(b => `<div class="sitem"><span class="sic">${b.icon}</span><div class="sinfo"><b>${esc(b.name)}</b><small>${esc(b.desc)}</small>${inv(b.id) > 0 ? `<em>Je hebt er ${inv(b.id)}</em>` : ''}</div>
+        <button class="btn sbuy" data-boost="${b.id}" ${c < b.price ? 'disabled' : ''}>🪙 ${b.price}</button></div>`).join('')}
+      <h3 style="margin-top:22px">Pions</h3>
+      <div class="skins">${SKINS.map(k => { const have = k.price === 0 || S.owned[k.id], on = S.skin === k.id;
+        return `<div class="skin ${on ? 'on' : ''}">${pion(76, 'happy', k.id)}<b>${esc(k.name)}</b>
+          ${on ? `<span class="wearing">Aan ✓</span>` : have ? `<button class="btn ghost sbuy" data-wear="${k.id}">Dragen</button>` : `<button class="btn sbuy" data-skin="${k.id}" ${c < k.price ? 'disabled' : ''}>🪙 ${k.price}</button>`}</div>`; }).join('')}</div>
+    </div>`;
+  document.getElementById('quit').onclick = home;
+  $app.querySelectorAll('[data-boost]').forEach(b => b.onclick = () => { const it = BOOSTS.find(x => x.id === b.dataset.boost); if (coins() < it.price) return;
+    S.buy[it.id] = (S.buy[it.id] || 0) + 1; save(); Sound.good(); const y = scrollY; shop(); scrollTo(0, y); });
+  $app.querySelectorAll('[data-skin]').forEach(b => b.onclick = () => { const k = SKINS.find(x => x.id === b.dataset.skin); if (coins() < k.price) return;
+    S.owned[k.id] = true; S.skin = k.id; save(); Sound.win(); confetti(); const y = scrollY; shop(); scrollTo(0, y); });
+  $app.querySelectorAll('[data-wear]').forEach(b => b.onclick = () => { S.skin = b.dataset.wear; save(); Sound.tap(); const y = scrollY; shop(); scrollTo(0, y); });
+  scrollTo(0, 0);
 }
 
 // ---------- Schatkist: beloning aan het eind van een thema ----------
@@ -614,12 +696,17 @@ function startLesson(qs, meta) {
     let html = `<h3>${esc(q.q)}</h3>${picture(q)}`;
     if (q.t === 'mc') {
       const opts = q.fixed ? q.a.map((a, i) => ({ a, i })) : shuffle(q.a.map((a, i) => ({ a, i })));
-      html += `<div class="opts">${opts.map(o => `<button class="opt" data-i="${o.i}">${esc(o.a)}</button>`).join('')}</div>`;
+      html += `<div class="opts">${opts.map(o => `<button class="opt" data-i="${o.i}">${esc(o.a)}</button>`).join('')}</div>`
+        + (q.a.length >= 3 && inv('hint') > 0 ? `<button class="hintbtn" id="hint">💡 Hint gebruiken (${inv('hint')})</button>` : '');
       wrap.innerHTML = html;
+      const hb = document.getElementById('hint');
+      if (hb) hb.onclick = () => { S.use.hint = (S.use.hint || 0) + 1; save(); Sound.tap(); hb.remove();
+        const wrong = shuffle([...wrap.querySelectorAll('.opt')].filter(o => +o.dataset.i !== q.c))[0]; wrong.classList.add('gone'); wrong.disabled = true; };
       wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
         const ok = +b.dataset.i === q.c;
         b.classList.add(ok ? 'good' : 'bad', ok ? 'pop' : 'shake');
         if (!ok) wrap.querySelector(`.opt[data-i="${q.c}"]`).classList.add('good');
+        const h = document.getElementById('hint'); if (h) h.remove();
         result(q, ok, q.a[q.c]);
       });
     } else if (q.t === 'yn') {
@@ -730,13 +817,14 @@ function startLesson(qs, meta) {
 
   function finish() {
     const perfect = missed.size === 0; if (perfect) xp += 5;
+    const dbl = inv('dbl') > 0; if (dbl) { xp *= 2; S.use.dbl = (S.use.dbl || 0) + 1; }
     S.xp += xp; S.days[dayKey()] = todayXp() + xp;
     if (meta.theme) S.done[meta.theme.id] = Math.max(S.done[meta.theme.id] || 0, meta.index + 1);
     save(); Sound.win(); confetti();
     $app.innerHTML = `<div class="finish">${pion(120)}
       <h2>${perfect ? 'Foutloos! 🌟' : 'Les gehaald!'}</h2>
       <div style="color:var(--soft)">${esc(meta.title)}</div>
-      <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>XP</span></div>
+      <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>${dbl ? 'XP · dubbel!' : 'XP'}</span></div>
         <div class="card" style="color:var(--green-d)"><b>${Math.round(firstTry / total * 100)}%</b><span>in één keer goed</span></div>
         <div class="card" style="color:#f76707"><b>🔥 ${streak()}</b><span>dagen op rij</span></div></div>
       <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
@@ -760,7 +848,7 @@ if (location.hash === '#overzicht') {
   $app.style.maxWidth = 'none';
   $app.innerHTML = '<div style="display:flex;flex-wrap:wrap;gap:8px;padding:8px">' + Object.values(ALL).filter(q => q.sign || q.scene)
     .map(q => `<div style="width:${q.scene ? 200 : 120}px;font:600 10px/1.2 sans-serif;text-align:center">${picture(q)}${q.id} ${q.sign ? q.sign[0] : ''}</div>`).join('') + '</div>';
-} else { home(); pull(); }
+} else { applyFreeze(); home(); pull(); }
 })();
 </script>
 </body>

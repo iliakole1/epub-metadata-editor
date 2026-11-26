@@ -13,6 +13,8 @@ regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar,
   thema, en een schatkist met bonus-XP aan het eind
 - **Animaties**: een weg met decor door het pad, voertuigen die na je antwoord in de goede volgorde
   wegrijden, binnenglijdende vragen, combo-meldingen; uit bij "verminder beweging"
+- **Winkel**: munten (verdiende XP min uitgaven) voor boosts (dubbele XP, hint, reeksbevriezing) en
+  skins voor de pylon; uitgeven verlaagt je XP of reeks niet
 - **Uitleg** na elk antwoord; foute vragen komen in dezelfde les terug en belanden bij "zwakke punten"
 - **Plaatjes**: verkeersborden en kruispunten worden in de app zelf getekend (SVG), geen foto's
 - **"Klopt niet?"** markeert een vraag; de lijst is op het startscherm te kopiëren
