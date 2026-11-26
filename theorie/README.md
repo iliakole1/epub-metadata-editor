@@ -8,6 +8,10 @@ regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar,
 - **Leerpad** per thema met korte lessen (± 8 vragen), XP, dagdoel, reeks (dagen op rij) en combo's
 - **Eerst uitleg, dan vragen**: `lessons.js` koppelt elke vraag aan een theoriekaartje; een les toont de
   kaartjes en vraagt daarna alleen over die stof
+- **Herhaling**: elke les eindigt met een paar vragen van eerder (langer weg na elk goed antwoord: 1, 3, 7,
+  14, 30 dagen; fout beantwoorde vragen eerst), en er is een aparte herhaalknop
+- **Complexe situaties** (`questions5.js`): een laatste thema met combinaties van borden, lichten en
+  meerdere weggebruikers
 - **Theoriekaartjes** vóór elke les, en per thema na te lezen via het 📘-knopje (`questions3.js`)
 - **Vraagtypen**: meerkeuze, ja/nee, getal invullen, volgorde bij een kruispunt, koppelen, sorteren,
   zin afmaken, het goede bord aantikken en stappen op volgorde zetten

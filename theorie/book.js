@@ -7,7 +7,7 @@ window.BOOKCATS = [
   { name: 'Borden, lichten en tekens', icon: '🛑', themes: ['borden', 'lichten', 'tekens'] },
   { name: 'Snelheid en soorten wegen', icon: '🛣️', themes: ['snelheid', 'snelweg', 'bijzonder', 'parkeren'] },
   { name: 'Jij en je auto', icon: '🚗', themes: ['alcohol', 'verlichting', 'voertuig', 'milieu'] },
-  { name: 'Gevaar, ongevallen en examen', icon: '🚑', themes: ['gevaar', 'ongeval', 'rijbewijs'] },
+  { name: 'Gevaar, ongevallen en examen', icon: '🚑', themes: ['gevaar', 'complex', 'ongeval', 'rijbewijs'] },
 ];
 window.BOOK = {
 voorrang: [
