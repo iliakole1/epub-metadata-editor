@@ -50,6 +50,11 @@ const NEW = {
   voertuig: [{ h: 'Techniek en controle', b: 'ABS voorkomt dat je wielen blokkeren, zodat je tijdens hard remmen kunt blijven sturen. Bij aquaplaning laat je het gas los en houd je het stuur recht. Een rood waarschuwingslampje betekent: zo snel mogelijk veilig stoppen. Controleer voor een lange rit je banden, verlichting, olie, koelvloeistof en ruitensproeiervloeistof.' }],
   rijbewijs: [{ h: 'Kenteken en verkoop', b: 'Een personenauto heeft voor en achter een gele kentekenplaat met zwarte tekens, die altijd goed leesbaar moet zijn. Verkoop je je auto, dan krijg je een vrijwaringsbewijs: het bewijs dat hij niet meer op jouw naam staat.' }],
 };
+T.complex = [
+  { h: 'Stap voor stap', b: 'In een drukke situatie loop je steeds hetzelfde rijtje af. 1: geeft iemand een aanwijzing of komt er een voorrangsvoertuig aan? 2: werken de verkeerslichten? 3: staan er borden of haaientanden? 4: doe ik een bijzondere manoeuvre of kom ik van een onverharde weg of uitrit? Pas als dat allemaal niet speelt, gaat rechts voor.' },
+  { h: 'Meer dan één bord', b: 'Staan er twee borden, dan gelden ze allebei. Een bord met een lagere maximumsnelheid gaat boven de algemene limiet van de weg; een adviessnelheid niet. Sommige regels hangen aan je voertuig, zoals 90 km/u met een aanhangwagen, en blijven gelden wat het bord ook zegt.' },
+  { h: 'Meer weggebruikers tegelijk', b: 'Bekijk iedere weggebruiker apart: wie moet op wie wachten? Wie op niemand hoeft te wachten, gaat eerst. Wie afslaat, laat iedereen voorgaan die op dezelfde weg rechtdoor gaat: tegenliggers, de fietser naast je en voetgangers. Een tram is de uitzondering: die gaat op een gelijkwaardig kruispunt voor, ook als hij afslaat.' },
+];
 for (const [t, o] of Object.entries(ADD)) for (const [i, txt] of Object.entries(o)) T[t][i].b += txt;
 for (const [t, cards] of Object.entries(NEW)) T[t].push(...cards);
 
@@ -75,6 +80,7 @@ window.PLAN = {
   voertuig: [P('t1 t2 t8'), P('t3 t4 xt2 t5 t6 t7'), P('t10 t11 t12 t9 xt1'), P('t14 t13 t15 t16')],
   milieu: [P('e1 e2 e6 e7'), P('e3 e8 e4 e5 e9 xe1 e10')],
   ongeval: [P('u2 u3 xu1 u1 u8 u12'), P('u4 u5 u6 u7 xu2'), P('u9 u11 u10')],
+  complex: [P('c8 c9 c24 c2 c11 c32 c33'), P('c1 c19 c17 c18 c16 c6 c20 c21'), P('c3 c14 c23 c10 c22 c4 c5 c27')],
   rijbewijs: [P('w1 w2 w3 w4 xw1 w5 w6'), P('w9 w12'), P('w10 xw2'), P('w8 w11 w7')],
 };
 })();
