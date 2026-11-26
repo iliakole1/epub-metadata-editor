@@ -42,8 +42,10 @@
   .bubble::before { content: ""; position: absolute; left: -9px; top: 50%; width: 14px; height: 14px; margin-top: -7px; background: #fff;
     border-left: 2px solid var(--line); border-bottom: 2px solid var(--line); transform: rotate(45deg); }
   .theme { margin: 18px 16px 0; }
-  .banner { border-radius: 16px; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 0 rgba(0,0,0,.18); }
-  .banner .ic { font-size: 28px; } .banner h2 { margin: 0; font-size: 20px; font-weight: 900; } .banner small { opacity: .85; font-weight: 800; }
+  .banner { border-radius: 16px; color: #fff; padding: 14px 16px; display: flex; align-items: center; gap: 12px; box-shadow: 0 4px 0 color-mix(in srgb, var(--c) 70%, #000);
+    background: repeating-linear-gradient(135deg, rgba(255,255,255,.07) 0 14px, transparent 14px 28px), linear-gradient(160deg, color-mix(in srgb, var(--c) 82%, #fff), var(--c)); }
+  .banner .ic { width: 46px; height: 46px; flex: none; display: grid; place-items: center; background: rgba(255,255,255,.22); border-radius: 50%; }
+  .banner .ic { font-size: 24px; } .banner h2 { margin: 0; font-size: 20px; font-weight: 900; } .banner small { opacity: .85; font-weight: 800; }
   .banner .pct { margin-left: auto; font-weight: 900; }
   .path { display: flex; flex-direction: column; align-items: center; gap: 26px; padding: 44px 0 10px; }
   .node { width: 72px; height: 66px; flex: none; padding: 0; border-radius: 50%; border: 0; cursor: pointer; font-size: 26px; font-weight: 900; color: #fff;
@@ -54,6 +56,58 @@
   .node.now::after { content: "START"; position: absolute; left: 50%; top: -30px; transform: translateX(-50%); background: #fff; color: var(--c);
     border: 2px solid var(--line); border-radius: 10px; padding: 2px 10px; font-size: 13px; animation: bob 1.2s ease-in-out infinite; white-space: nowrap; }
   @keyframes bob { 50% { transform: translate(-50%, -5px); } }
+  /* het pad: weg, decor, bijzondere knopen */
+  .path { position: relative; }
+  .road { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; pointer-events: none; }
+  .deco { position: absolute; z-index: 0; font-size: 26px; line-height: 1; pointer-events: none; animation: sway 4s ease-in-out infinite; transform-origin: 50% 100%; }
+  .deco:nth-of-type(odd) { animation-delay: -2s; }
+  .deco.here { animation: hop 1.6s ease-in-out infinite; z-index: 2; }
+  @keyframes sway { 50% { transform: rotate(4deg); } }
+  @keyframes hop { 0%, 60%, 100% { transform: translateY(0); } 30% { transform: translateY(-9px); } }
+  .node { z-index: 1; }
+  .node.now::before { content: ""; position: absolute; inset: -9px; border-radius: 50%; border: 4px solid var(--c); opacity: .35; animation: ring 1.8s ease-out infinite; }
+  @keyframes ring { from { transform: scale(.85); opacity: .5; } to { transform: scale(1.25); opacity: 0; } }
+  .node.special { border-radius: 22px; width: 68px; height: 64px; font-size: 28px; }
+  .node.special.fresh, .node.special.ready { animation: wiggle 2.4s ease-in-out infinite; }
+  .node.special.locked { filter: grayscale(1); opacity: .75; }
+  .node.special.opened { background: #fff3bf; box-shadow: 0 7px 0 #ffe066; cursor: default; }
+  .node.special.played { background: color-mix(in srgb, var(--c) 70%, #fff); }
+  @keyframes wiggle { 0%, 70%, 100% { transform: rotate(0); } 76% { transform: rotate(-9deg); } 84% { transform: rotate(8deg); } 92% { transform: rotate(-4deg); } }
+  /* mascotte */
+  .pion { overflow: visible; }
+  .pion .eyes { transform-box: fill-box; transform-origin: center; animation: blink 4.2s infinite; }
+  @keyframes blink { 0%, 93%, 100% { transform: scaleY(1); } 96% { transform: scaleY(.1); } }
+  .hello .pion { animation: hop 2.6s ease-in-out infinite; }
+  .finish .pion { animation: jump .7s cubic-bezier(.3, 1.6, .5, 1) 2; }
+  @keyframes jump { 0%, 100% { transform: translateY(0) rotate(0); } 40% { transform: translateY(-34px) rotate(-8deg); } 70% { transform: translateY(0) rotate(4deg); } }
+  .finish .card { animation: rise .4s both; } .finish .card:nth-child(2) { animation-delay: .12s; } .finish .card:nth-child(3) { animation-delay: .24s; }
+  .sheet h4 .pion { vertical-align: -8px; }
+  /* vragen komen binnenglijden */
+  #qwrap > * { animation: rise .28s both; } #qwrap > :nth-child(2) { animation-delay: .05s; } #qwrap > :nth-child(3) { animation-delay: .1s; }
+  @keyframes rise { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+  .bar i { position: relative; overflow: hidden; }
+  .bar i::after { content: ""; position: absolute; inset: 0; background: linear-gradient(100deg, transparent 30%, rgba(255,255,255,.55) 50%, transparent 70%); animation: shine 2.2s linear infinite; }
+  @keyframes shine { from { transform: translateX(-100%); } to { transform: translateX(100%); } }
+  .bar.timer i { width: 100%; background: linear-gradient(#b197fc, #7048e8); transform-origin: 0 50%; animation: drain linear forwards; }
+  @keyframes drain { to { transform: scaleX(0); } }
+  .combotoast { position: fixed; left: 50%; top: 22%; z-index: 40; transform: translateX(-50%); background: #fff4e6; color: #e8590c; border: 2px solid #ffc078; border-radius: 16px;
+    padding: 8px 18px; font-size: 22px; font-weight: 900; pointer-events: none; animation: toast 1.5s ease-out forwards; white-space: nowrap; }
+  @keyframes toast { 0% { opacity: 0; transform: translate(-50%, 20px) scale(.6); } 18% { opacity: 1; transform: translate(-50%, 0) scale(1.1); } 30% { transform: translate(-50%, 0) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, -30px); } }
+  /* memory */
+  .memory { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .mcard { height: 104px; border: 0; background: none; padding: 0; cursor: pointer; perspective: 600px; }
+  .mi { position: relative; display: block; width: 100%; height: 100%; transition: transform .4s; transform-style: preserve-3d; }
+  .mcard.up .mi { transform: rotateY(180deg); }
+  .mf, .mb { position: absolute; inset: 0; display: grid; place-items: center; border-radius: 14px; backface-visibility: hidden; -webkit-backface-visibility: hidden; padding: 6px 8px; text-align: center; font-size: 15px; }
+  .mf { background: linear-gradient(160deg, #9775fa, #7048e8); color: #fff; font-size: 34px; font-weight: 900; box-shadow: 0 4px 0 #5f3dc4; }
+  .mb { background: #fff; border: 2px solid var(--line); transform: rotateY(180deg); box-shadow: 0 4px 0 var(--line); }
+  .mb svg.sign { width: 62px; height: 62px; }
+  .mcard.found .mb { border-color: var(--green); background: #ebfbee; box-shadow: 0 4px 0 #b2f2bb; animation: pop .3s; }
+  /* schatkist */
+  .bigchest { font-size: 96px; line-height: 1.1; cursor: pointer; display: inline-block; animation: wiggle 1.4s ease-in-out infinite; }
+  .bigchest.open { animation: pop .4s; cursor: default; }
+  .chestxp { font-size: 34px; font-weight: 900; color: var(--gold); margin: 0 0 14px; animation: rise .4s both; }
+  @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; } }
   .extra { padding: 8px 16px 0; display: grid; gap: 10px; }
   .foot { color: var(--soft); font-size: 13px; font-weight: 600; padding: 22px 20px calc(28px + env(safe-area-inset-bottom)); text-align: center; }
   .foot button { border: 0; background: none; color: var(--blue); text-decoration: underline; cursor: pointer; font-weight: 800; font-size: 13px; }
@@ -140,7 +194,7 @@ const LESSON_SIZE = 8, DAILY_GOAL = 50;
 
 // ---------- Opslag (alleen op dit apparaat) ----------
 const KEY = 'theorie-v1';
-let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], mute: false };
+let S = { xp: 0, days: {}, done: {}, q: {}, flags: [], sp: {}, best: {}, mute: false };
 try { S = Object.assign(S, JSON.parse(localStorage.getItem(KEY)) || {}); } catch (_) {}
 const saveLocal = () => { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (_) {} };
 const save = () => { saveLocal(); schedulePush(); };
@@ -159,8 +213,10 @@ function mergeState(R) {
   for (const [t, v] of Object.entries(R.done || {})) S.done[t] = Math.max(S.done[t] || 0, +v || 0);
   for (const [id, v] of Object.entries(R.q || {})) { const mine = S.q[id]; if (!mine || (v.t || 0) > (mine.t || 0)) S.q[id] = v; }
   S.flags = [...new Set([...(S.flags || []), ...Object.values(R.flags || {})])];
+  for (const k of Object.keys(R.sp || {})) S.sp[k] = true;
+  for (const [k, v] of Object.entries(R.best || {})) S.best[k] = Math.max(S.best[k] || 0, +v || 0);
 }
-const cloudBody = () => JSON.stringify({ xp: S.xp, days: S.days, done: S.done, q: S.q, flags: S.flags });
+const cloudBody = () => JSON.stringify({ xp: S.xp, days: S.days, done: S.done, q: S.q, flags: S.flags, sp: S.sp, best: S.best });
 async function push() {
   try { const r = await fetch(CLOUD, { method: 'PUT', body: cloudBody() }); setCloud(r.ok ? 'ok' : 'uit'); } catch (_) { setCloud('uit'); }
 }
@@ -170,7 +226,7 @@ async function pull() {
     const r = await fetch(CLOUD); if (!r.ok) throw 0;
     const R = await r.json(), before = cloudBody();
     mergeState(R); saveLocal(); setCloud('ok');
-    if (cloudBody() !== JSON.stringify({ xp: R && R.xp, days: R && R.days, done: R && R.done, q: R && R.q, flags: R && R.flags })) push();
+    if (cloudBody() !== JSON.stringify({ xp: R && R.xp, days: R && R.days, done: R && R.done, q: R && R.q, flags: R && R.flags, sp: R && R.sp, best: R && R.best })) push();
     if (cloudBody() !== before && document.querySelector('.top')) home();      // startscherm bijwerken met wat er binnenkwam
   } catch (_) { setCloud('uit'); }
 }
@@ -209,10 +265,10 @@ const Sound = (() => {
 })();
 
 // ---------- Mascotte: Pion de pylon ----------
-const pion = (size = 64, mood = 'happy') => `<svg width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
+const pion = (size = 64, mood = 'happy') => `<svg class="pion" width="${size}" height="${size}" viewBox="0 0 100 100" aria-hidden="true">
   <rect x="10" y="80" width="80" height="12" rx="5" fill="#e8590c"/>
   <path d="M38 12h24l18 68H20z" fill="#ff922b"/><path d="M33 34h34l5 16H28z" fill="#fff"/><path d="M26 60h48l3 10H23z" fill="#fff"/>
-  <circle cx="42" cy="42" r="5" fill="#343a40"/><circle cx="58" cy="42" r="5" fill="#343a40"/><circle cx="43.5" cy="40.5" r="1.6" fill="#fff"/><circle cx="59.5" cy="40.5" r="1.6" fill="#fff"/>
+  <g class="eyes"><circle cx="42" cy="42" r="5" fill="#343a40"/><circle cx="58" cy="42" r="5" fill="#343a40"/><circle cx="43.5" cy="40.5" r="1.6" fill="#fff"/><circle cx="59.5" cy="40.5" r="1.6" fill="#fff"/></g>
   ${mood === 'sad' ? '<path d="M43 58q7-6 14 0" fill="none" stroke="#343a40" stroke-width="3" stroke-linecap="round"/>' : '<path d="M42 54q8 9 16 0" fill="#343a40"/>'}
 </svg>`;
 
@@ -302,16 +358,42 @@ function scene(sc) {
   for (const v of sc.v) {
     if (v.k === 'ped') {
       arrows += `<line x1="${v.at[0]}" y1="${v.at[1] - 12}" x2="${v.to[0]}" y2="${v.to[1]}" stroke="#fff" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#ah)"/>`;
-      cars += `<g transform="translate(${v.at[0]},${v.at[1]})"><ellipse rx="9" ry="5" fill="#f08c00" stroke="#212529" stroke-width="1.2"/><circle r="5" fill="#ffd8a8" stroke="#212529" stroke-width="1.2"/></g>`;
+      cars += `<g data-car="${v.id}" data-ped="${v.at.join(',')},${v.to.join(',')}" transform="translate(${v.at[0]},${v.at[1]})"><ellipse rx="9" ry="5" fill="#f08c00" stroke="#212529" stroke-width="1.2"/><circle r="5" fill="#ffd8a8" stroke="#212529" stroke-width="1.2"/></g>`;
       continue;
     }
     const x = v.k === 'bike' ? 181 : v.k === 'you' && sc.v.some(o => o.k === 'bike' && o.f === v.f) ? 160 : 167, y0 = 212;
     const d = v.g === 's' ? `M${x} ${y0}L${x} 66` : v.g === 'r' ? `M${x} ${y0}Q${x} 169 246 169` : `M${x} ${y0}Q${x} 131 54 131`;
-    arrows += `<g transform="rotate(${ROT[v.f]} 150 150)"><path d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#ah)" opacity=".95"/></g>`;
-    cars += `<g transform="rotate(${ROT[v.f]} 150 150)"><g transform="translate(${x},236)">${body(v)}</g></g>`;
+    arrows += `<g transform="rotate(${ROT[v.f]} 150 150)"><path data-vid="${v.id}" d="${d}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="6 5" marker-end="url(#ah)" opacity=".95"/></g>`;
+    cars += `<g transform="rotate(${ROT[v.f]} 150 150)"><g data-car="${v.id}" transform="translate(${x},236)">${body(v)}</g></g>`;
   }
   return `<svg class="scene" viewBox="0 0 300 300" aria-hidden="true">${h}${arrows}${cars}</svg>`;
 }
+// Na het antwoord rijden de voertuigen in de goede volgorde weg.
+function driveScene(svg, order) {
+  if (!svg || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  order.forEach((id, n) => setTimeout(() => {
+    const car = svg.querySelector(`[data-car="${id}"]`); if (!car || !car.isConnected) return;
+    const t0 = performance.now(), dur = 950;
+    if (car.dataset.ped) {
+      const [x0, y0, x1, y1] = car.dataset.ped.split(',').map(Number);
+      const step = now => { const t = Math.min(1, (now - t0) / dur); car.setAttribute('transform', `translate(${x0 + (x1 - x0) * t},${y0 + (y1 - y0) * t})`); if (t < 1 && car.isConnected) requestAnimationFrame(step); };
+      return requestAnimationFrame(step);
+    }
+    const path = svg.querySelector(`path[data-vid="${id}"]`), len = path.getTotalLength(), p0 = path.getPointAtLength(0), pe = path.getPointAtLength(len), pb = path.getPointAtLength(len - 1);
+    const ex = pe.x - pb.x, ey = pe.y - pb.y, total = 24 + len + 130;
+    const step = now => {
+      const t = Math.min(1, (now - t0) / dur), e = t * t * (3 - 2 * t), sdist = -24 + e * total;
+      let x, y, ang = 0;
+      if (sdist < 0) { x = p0.x; y = p0.y - sdist; }
+      else if (sdist > len) { x = pe.x + ex * (sdist - len); y = pe.y + ey * (sdist - len); ang = Math.atan2(ey, ex) * 180 / Math.PI + 90; }
+      else { const a = path.getPointAtLength(sdist), b = path.getPointAtLength(Math.min(len, sdist + 1)); x = a.x; y = a.y; ang = sdist + 1 > len ? Math.atan2(ey, ex) * 180 / Math.PI + 90 : Math.atan2(b.y - a.y, b.x - a.x) * 180 / Math.PI + 90; }
+      car.setAttribute('transform', `translate(${x},${y}) rotate(${ang})`);
+      if (t < 1 && car.isConnected) requestAnimationFrame(step);
+    };
+    requestAnimationFrame(step);
+  }, 250 + n * 800));
+}
+const sceneOrder = q => { if (q.order) return q.order; const vs = q.scene.v, first = vs.find(v => q.t === 'mc' && v.n === q.a[q.c]); return first ? [first.id, ...vs.filter(v => v !== first).map(v => v.id)] : []; };
 const picture = q => q.sign ? `<div class="pic">${sign(q.sign)}</div>` : q.scene ? `<div class="pic">${scene(q.scene)}</div>` : '';
 
 // ---------- Start ----------
@@ -327,10 +409,22 @@ function home() {
     </div>
     <div class="hello">${pion(64)}<div class="bubble">${xpT >= DAILY_GOAL ? 'Dagdoel gehaald! 🎉 Je mag gewoon doorgaan hoor.' : GREETS[Math.floor(Math.random() * GREETS.length)]}</div></div>
     ${THEMES.map(t => {
-      const ls = lessonsOf(t), done = Math.min(S.done[t.id] || 0, ls.length);
-      return `<div class="theme"><div class="banner" style="background:${t.color}"><span class="ic">${t.icon}</span><div><h2>${esc(t.name)}</h2><small>${esc(t.ch || '')}</small></div><span class="pct">${done}/${ls.length}</span>${(THEORY[t.id] || []).length ? `<button class="book" data-book="${t.id}" aria-label="Theorie van ${esc(t.name)}">📘</button>` : ''}</div>
-        <div class="path">${ls.map((_, i) => `<button class="node ${i < done ? 'done' : i === done ? 'now' : 'locked'}" style="--c:${t.color};margin-left:${Math.round(Math.sin(i * 1.3) * 70)}px"
-          data-theme="${t.id}" data-lesson="${i}" ${i > done ? 'disabled' : ''} aria-label="Les ${i + 1}">${i < done ? '✓' : i === done ? '★' : '🔒'}</button>`).join('')}</div></div>`;
+      const ls = lessonsOf(t), done = Math.min(S.done[t.id] || 0, ls.length), items = [];
+      ls.forEach((_, i) => { items.push({ k: 'lesson', i }); if (i === 0 && ls.length >= 2) items.push({ k: 'game' }); });
+      items.push({ k: 'chest' });
+      const nodes = items.map((it, n) => {
+        const st = `--c:${t.color};margin-left:${Math.round(Math.sin(n * 1.3) * 70)}px`, i = it.i;
+        if (it.k === 'lesson') return `<button class="node ${i < done ? 'done' : i === done ? 'now' : 'locked'}" style="${st}"
+          data-theme="${t.id}" data-lesson="${i}" ${i > done ? 'disabled' : ''} aria-label="Les ${i + 1}">${i < done ? '✓' : i === done ? '★' : '🔒'}</button>`;
+        if (it.k === 'game') { const open = done >= 1, mem = memoryPairs(t);
+          return `<button class="node special ${open ? (S.sp[t.id + '_game'] ? 'played' : 'fresh') : 'locked'}" style="${st};--c:#7048e8" data-theme="${t.id}" data-sp="game" ${open ? '' : 'disabled'}
+            aria-label="${mem ? 'Memory' : 'Bliksemronde'}">${mem ? '🃏' : '⚡'}</button>`; }
+        const open = done >= ls.length, got = S.sp[t.id + '_chest'];
+        return `<button class="node special chest ${!open ? 'locked' : got ? 'opened' : 'ready'}" style="${st};--c:#f59f00" data-theme="${t.id}" data-sp="chest" ${open && !got ? '' : 'disabled'}
+          aria-label="Schatkist">${got ? '✨' : '🎁'}</button>`;
+      }).join('');
+      return `<div class="theme"><div class="banner" style="--c:${t.color}"><span class="ic">${t.icon}</span><div><h2>${esc(t.name)}</h2><small>${esc(t.ch || '')}</small></div><span class="pct">${done}/${ls.length}</span>${(THEORY[t.id] || []).length ? `<button class="book" data-book="${t.id}" aria-label="Theorie van ${esc(t.name)}">📘</button>` : ''}</div>
+        <div class="path" style="--c:${t.color}">${nodes}</div></div>`;
     }).join('')}
     <div class="extra">
       ${weak ? `<button class="btn red" id="weak">💪 Oefen mijn zwakke punten (${weak})</button>` : ''}
@@ -341,7 +435,13 @@ function home() {
       <span id="cloud">${cloudText()}</span><br>
       ${S.flags.length ? `<button id="flags">Gemarkeerde vragen (${S.flags.length})</button>` : ''}</div>`;
   document.getElementById('mute').onclick = () => { S.mute = !S.mute; save(); home(); };
-  $app.querySelectorAll('.node:not(.locked)').forEach(b => b.onclick = () => {
+  screenToken++;
+  decoratePaths();
+  $app.querySelectorAll('.node[data-sp]:not(:disabled)').forEach(b => b.onclick = () => {
+    const t = THEMES.find(t => t.id === b.dataset.theme); Sound.tap();
+    if (b.dataset.sp === 'chest') openChest(t); else if (memoryPairs(t)) startMemory(t); else startBlitz(t);
+  });
+  $app.querySelectorAll('.node[data-lesson]:not(.locked)').forEach(b => b.onclick = () => {
     const t = THEMES.find(t => t.id === b.dataset.theme), i = +b.dataset.lesson;
     Sound.tap();
     const go = () => startLesson(lessonsOf(t)[i], { theme: t, index: i, title: `${t.name} · les ${i + 1}` });
@@ -355,6 +455,105 @@ function home() {
   scrollTo(0, 0);
 }
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+// ---------- Het pad: weg, decor en Pion bij de les waar je bent ----------
+let screenToken = 0;
+const DECO = ['🌳', '🏡', '🌲', '⛽', '🌷', '🚏', '🌳', '🏪', '🌻', '🚲'];
+function decoratePaths() {
+  let pionPlaced = false, d = 0;
+  $app.querySelectorAll('.path').forEach(path => {
+    const pts = [...path.querySelectorAll('.node')].map(n => ({ n, x: n.offsetLeft + n.offsetWidth / 2, y: n.offsetTop + n.offsetHeight / 2 + 3 }));
+    if (!pts.length) return;
+    let dd = `M${pts[0].x} ${pts[0].y}`;
+    for (let i = 1; i < pts.length; i++) { const a = pts[i - 1], b = pts[i], m = (a.y + b.y) / 2; dd += `C${a.x} ${m} ${b.x} ${m} ${b.x} ${b.y}`; }
+    const W = path.offsetWidth, H = path.offsetHeight;
+    path.insertAdjacentHTML('afterbegin', `<svg class="road" viewBox="0 0 ${W} ${H}" aria-hidden="true"><path d="${dd}" fill="none" stroke="#dee2e6" stroke-width="30" stroke-linecap="round"/><path d="${dd}" fill="none" stroke="#fff" stroke-width="3" stroke-dasharray="10 12" stroke-linecap="round"/></svg>`);
+    pts.forEach((p, i) => {
+      const side = p.x >= W / 2 ? -1 : 1;                          // decor aan de kant waar ruimte is
+      if (!pionPlaced && p.n.classList.contains('now')) { pionPlaced = true;
+        path.insertAdjacentHTML('beforeend', `<span class="deco here" style="left:${p.x + side * 92 - 26}px;top:${p.y - 34}px">${pion(52)}</span>`); return; }
+      path.insertAdjacentHTML('beforeend', `<span class="deco" style="left:${p.x + side * (96 + (i % 2) * 22) - 14}px;top:${p.y - 20 + (i % 3) * 6}px">${DECO[d++ % DECO.length]}</span>`);
+    });
+  });
+}
+const award = n => { S.xp += n; S.days[dayKey()] = todayXp() + n; };
+function countUp(el, n) { if (!el) return; const t0 = performance.now(); const f = now => { const t = Math.min(1, (now - t0) / 800); el.textContent = '+' + Math.round(n * t); if (t < 1) requestAnimationFrame(f); }; requestAnimationFrame(f); }
+function comboToast(n) { const el = document.createElement('div'); el.className = 'combotoast'; el.textContent = `🔥 ${n} op rij!`; document.body.appendChild(el); setTimeout(() => el.remove(), 1500); }
+function gameDone(title, sub, xp, cards) {
+  save(); Sound.win(); confetti();
+  $app.innerHTML = `<div class="finish">${pion(120)}<h2>${esc(title)}</h2><div style="color:var(--soft)">${esc(sub)}</div>
+    <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>XP</span></div>${cards}</div>
+    <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
+  countUp(document.getElementById('xpn'), xp);
+  document.getElementById('back').onclick = home;
+}
+
+// ---------- Schatkist: beloning aan het eind van een thema ----------
+function openChest(t) {
+  const m = document.createElement('div'); m.className = 'modal chestm';
+  m.innerHTML = `<div style="text-align:center"><div class="bigchest" id="bc">🎁</div><h3 style="margin:8px 0 4px">${esc(t.name)} afgerond!</h3><p style="margin:0 0 12px;font-weight:700;color:var(--soft)">Tik op het cadeau</p></div>`;
+  document.body.appendChild(m);
+  m.querySelector('#bc').onclick = e => {
+    if (S.sp[t.id + '_chest']) return;
+    S.sp[t.id + '_chest'] = true; award(20); save(); Sound.win(); confetti();
+    e.target.classList.add('open'); e.target.textContent = '✨';
+    m.querySelector('p').outerHTML = `<p class="chestxp">+20 XP</p><button class="btn green" id="cok">Lekker!</button>`;
+    m.querySelector('#cok').onclick = () => { m.remove(); home(); };
+  };
+}
+
+// ---------- Memory: zoek de paren ----------
+const memoryPairs = t => { const m = (EXTRA[t.id] || []).filter(x => x.t === 'match' && x.pairs.length >= 4); return m.length ? m : null; };
+function startMemory(t) {
+  const ex = memoryPairs(t)[Math.floor(Math.random() * memoryPairs(t).length)], cell = v => typeof v === 'string' ? esc(v) : sign(v.sign);
+  const cards = shuffle(ex.pairs.slice(0, 4).flatMap((p, k) => [{ k, h: cell(p[0]) }, { k, h: cell(p[1]) }]));
+  let open = [], left = 4, moves = 0, busy = false;
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Stoppen">✕</button><b style="flex:1">🃏 Memory · ${esc(t.name)}</b><span class="combo" id="moves">0</span></div>
+    <div class="qwrap"><h3>Zoek de paren die bij elkaar horen</h3><div class="memory">${cards.map((c, i) => `<button class="mcard" data-i="${i}" aria-label="Kaart"><span class="mi"><span class="mf">?</span><span class="mb">${c.h}</span></span></button>`).join('')}</div></div>`;
+  document.getElementById('quit').onclick = home;
+  $app.querySelectorAll('.mcard').forEach(b => b.onclick = () => {
+    if (busy || b.classList.contains('up')) return;
+    b.classList.add('up'); Sound.tap(); open.push(b);
+    if (open.length < 2) return;
+    document.getElementById('moves').textContent = ++moves;
+    const [a, c] = open; open = [];
+    if (cards[+a.dataset.i].k === cards[+c.dataset.i].k) { [a, c].forEach(x => x.classList.add('found')); Sound.good();
+      if (--left === 0) setTimeout(() => { S.sp[t.id + '_game'] = true; award(15); gameDone('Alle paren gevonden!', `Memory · ${t.name}`, 15, `<div class="card" style="color:var(--blue)"><b>${moves}</b><span>beurten</span></div>`); }, 700);
+    } else { busy = true; setTimeout(() => { [a, c].forEach(x => x.classList.remove('up')); busy = false; }, 900); }
+  });
+  scrollTo(0, 0);
+}
+
+// ---------- Bliksemronde: zo veel mogelijk goed in 45 seconden ----------
+function startBlitz(t) {
+  const token = ++screenToken, SECS = 45;
+  let pool = [], score = 0, asked = 0, over = false;
+  $app.innerHTML = `<div class="lhead"><button class="iconbtn" id="quit" aria-label="Stoppen">✕</button><div class="bar timer"><i style="animation-duration:${SECS}s"></i></div><div class="combo" id="score">⚡ 0</div></div><div class="qwrap" id="qwrap"></div>`;
+  document.getElementById('quit').onclick = home;
+  const wrap = document.getElementById('qwrap');
+  const end = () => { if (over || token !== screenToken) return; over = true;
+    const xp = score * 2, best = Math.max(S.best[t.id] || 0, score), rec = score > (S.best[t.id] || 0) && score > 0;
+    S.best[t.id] = best; S.sp[t.id + '_game'] = true; award(xp);
+    gameDone(rec ? 'Nieuw record! ⚡' : 'Tijd om!', `Bliksemronde · ${t.name}`, xp, `<div class="card" style="color:var(--green-d)"><b>${score}/${asked}</b><span>goed</span></div><div class="card" style="color:#7048e8"><b>${best}</b><span>record</span></div>`); };
+  setTimeout(end, SECS * 1000);
+  const next = () => {
+    if (over || token !== screenToken) return;
+    if (!pool.length) pool = shuffle(t.qs.filter(q => q.t === 'mc' || q.t === 'yn'));
+    const q = pool.pop();
+    const opts = q.t === 'yn' ? [{ a: 'Ja', ok: q.c }, { a: 'Nee', ok: !q.c }] : (q.fixed ? q.a.map((a, i) => ({ a, ok: i === q.c })) : shuffle(q.a.map((a, i) => ({ a, ok: i === q.c }))));
+    wrap.classList.remove('dis');
+    wrap.innerHTML = `<h3>${esc(q.q)}</h3>${picture(q)}<div class="opts ${q.t === 'yn' ? 'yn' : ''}">${opts.map((o, i) => `<button class="opt" data-i="${i}">${esc(o.a)}</button>`).join('')}</div>`;
+    wrap.querySelectorAll('.opt').forEach(b => b.onclick = () => {
+      const ok = opts[+b.dataset.i].ok; asked++; wrap.classList.add('dis');
+      b.classList.add(ok ? 'good' : 'bad', ok ? 'pop' : 'shake');
+      if (!ok) wrap.querySelector(`.opt[data-i="${opts.findIndex(o => o.ok)}"]`).classList.add('good');
+      if (ok) { score++; Sound.good(); document.getElementById('score').textContent = `⚡ ${score}`; } else Sound.bad();
+      setTimeout(next, ok ? 380 : 1100);
+    });
+    scrollTo(0, 0);
+  };
+  next();
+}
 
 // Theoriekaartjes: vóór een les, of alles van een thema via het boekje
 function showTheory(t, cards, title, next, label) {
@@ -399,9 +598,11 @@ function startLesson(qs, meta) {
     if (ok) { st.r++; right++; combo++; if (!missed.has(q.id)) { firstTry++; xp += 10; } else xp += 5; Sound.good(); }
     else { st.r = 0; st.w++; combo = 0; missed.add(q.id); queue.push(q); Sound.bad(); }
     save();
+    if (q.scene) driveScene(wrap.querySelector('svg.scene'), sceneOrder(q));
+    if (ok && [3, 5, 10].includes(combo)) comboToast(combo);
     sheet.className = 'sheet show ' + (ok ? 'good' : 'bad');
     sheet.firstElementChild.innerHTML = `<button class="flag" id="flag">${S.flags.includes(q.id) ? 'gemarkeerd ✓' : 'klopt niet?'}</button>
-      <h4>${ok ? ['Goed zo!', 'Top!', 'Lekker bezig!', 'Helemaal goed!'][Math.floor(Math.random() * 4)] : 'Helaas…'}</h4>
+      <h4>${pion(34, ok ? 'happy' : 'sad')} ${ok ? ['Goed zo!', 'Top!', 'Lekker bezig!', 'Helemaal goed!'][Math.floor(Math.random() * 4)] : 'Helaas…'}</h4>
       <p>${ok || !correctText ? '' : `<b>Goed antwoord: ${esc(correctText)}</b><br>`}${esc(q.e)}</p>
       <button class="btn ${ok ? 'green' : 'red'}" id="go">Verder</button>`;
     document.getElementById('go').onclick = () => { Sound.tap(); next(); };
@@ -535,10 +736,11 @@ function startLesson(qs, meta) {
     $app.innerHTML = `<div class="finish">${pion(120)}
       <h2>${perfect ? 'Foutloos! 🌟' : 'Les gehaald!'}</h2>
       <div style="color:var(--soft)">${esc(meta.title)}</div>
-      <div class="cards"><div class="card" style="color:var(--gold)"><b>+${xp}</b><span>XP</span></div>
+      <div class="cards"><div class="card" style="color:var(--gold)"><b id="xpn">+0</b><span>XP</span></div>
         <div class="card" style="color:var(--green-d)"><b>${Math.round(firstTry / total * 100)}%</b><span>in één keer goed</span></div>
         <div class="card" style="color:#f76707"><b>🔥 ${streak()}</b><span>dagen op rij</span></div></div>
       <button class="btn green" id="back" style="max-width:320px">Verder</button></div>`;
+    countUp(document.getElementById('xpn'), xp);
     document.getElementById('back').onclick = home;
   }
   next();

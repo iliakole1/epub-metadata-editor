@@ -9,6 +9,10 @@ regels staan in `sinterklaas/database.rules.json`). Is de cloud niet bereikbaar,
 - **Theoriekaartjes** vóór elke les, en per thema na te lezen via het 📘-knopje (`questions3.js`)
 - **Vraagtypen**: meerkeuze, ja/nee, getal invullen, volgorde bij een kruispunt, koppelen, sorteren,
   zin afmaken, het goede bord aantikken en stappen op volgorde zetten
+- **Bijzondere knopen** op het pad: een memory of een bliksemronde (45 seconden) na de eerste les van een
+  thema, en een schatkist met bonus-XP aan het eind
+- **Animaties**: een weg met decor door het pad, voertuigen die na je antwoord in de goede volgorde
+  wegrijden, binnenglijdende vragen, combo-meldingen; uit bij "verminder beweging"
 - **Uitleg** na elk antwoord; foute vragen komen in dezelfde les terug en belanden bij "zwakke punten"
 - **Plaatjes**: verkeersborden en kruispunten worden in de app zelf getekend (SVG), geen foto's
 - **"Klopt niet?"** markeert een vraag; de lijst is op het startscherm te kopiëren
