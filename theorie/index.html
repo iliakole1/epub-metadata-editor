@@ -259,6 +259,7 @@
 <script src="questions2.js?v=2"></script>
 <script src="questions4.js?v=1"></script>
 <script src="questions3.js?v=1"></script>
+<script src="lessons.js?v=1"></script>
 <script src="book.js?v=1"></script>
 <script>
 (() => {
@@ -351,13 +352,28 @@ function applyFreeze() {
   gap.forEach(k => { S.frozen[k] = true; }); S.use.freeze = (S.use.freeze || 0) + gap.length; saveLocal();
 }
 const weakIds = () => Object.keys(S.q).filter(id => ALL[id] && S.q[id].w > 0 && (S.q[id].r || 0) < 2);
-const lessonsOf = t => { const n = Math.max(1, Math.round(t.qs.length / LESSON_SIZE)), size = Math.ceil(t.qs.length / n);
-  const ls = Array.from({ length: n }, (_, i) => t.qs.slice(i * size, (i + 1) * size)).filter(l => l.length);
-  // de extra oefenvormen (koppelen, sorteren, ...) worden over de lessen verdeeld, tussen de gewone vragen
-  (EXTRA[t.id] || []).forEach((x, j) => { const l = ls[j % ls.length], k = l.filter(q => q.id[0] === 'x').length; l.splice(Math.min(l.length, 3 + k * 4), 0, x); });
-  return ls; };
-// theoriekaartjes van een thema, verdeeld over de lessen
-const cardsFor = (t, i) => { const c = THEORY[t.id] || [], L = lessonsOf(t).length; return c.slice(Math.floor(i * c.length / L), Math.floor((i + 1) * c.length / L)); };
+// Lessen volgen de theorie: een les bestaat uit een of meer kaartjes plus precies de vragen die daarbij horen
+// (zie lessons.js). Eerst uitleg, dan pas vragen. Heeft een kaartje veel vragen, dan wordt het over meer lessen
+// verdeeld en krijg je het kaartje opnieuw te zien.
+const PLAN = window.PLAN || {}, lessonCache = {};
+const lessonsOf = t => {
+  if (lessonCache[t.id]) return lessonCache[t.id];
+  const plan = PLAN[t.id], ls = [], byId = Object.fromEntries([...t.qs, ...(EXTRA[t.id] || [])].map(q => [q.id, q]));
+  if (!plan) { const l = t.qs.slice(); l.cards = (THEORY[t.id] || []).map((_, i) => i); return lessonCache[t.id] = [l]; }
+  // elke vraag onthoudt bij welk kaartje hij hoort; een les toont de kaartjes van zijn eigen vragen
+  // (plus kaartjes zonder vragen die er vlak voor komen), of de vaste set uit RECAP
+  const fixed = (window.RECAP || {})[t.id];
+  const flush = (pend, items) => { const l = items.map(x => x.q); l.cards = fixed || [...new Set([...pend, ...items.map(x => x.c)])].sort((a, b) => a - b); ls.push(l); };
+  let pend = [], qs = [];
+  plan.forEach((ids, i) => {
+    pend.push(i); qs.push(...ids.map(id => byId[id]).filter(Boolean).map(q => ({ q, c: i })));
+    while (qs.length >= 13) { flush(pend, qs.splice(0, Math.ceil(qs.length / Math.ceil(qs.length / 9)))); pend = []; }
+    if (qs.length >= 6) { flush(pend, qs); pend = []; qs = []; }
+  });
+  if (qs.length) { if (qs.length < 4 && ls.length) { const last = ls[ls.length - 1]; last.push(...qs.map(x => x.q)); last.cards = fixed || [...new Set([...last.cards, ...pend, ...qs.map(x => x.c)])]; } else flush(pend, qs); }
+  return lessonCache[t.id] = ls;
+};
+const cardsFor = (t, i) => ((lessonsOf(t)[i] || {}).cards || []).map(k => (THEORY[t.id] || [])[k]).filter(Boolean);
 
 // ---------- Geluid ----------
 const Sound = (() => {
